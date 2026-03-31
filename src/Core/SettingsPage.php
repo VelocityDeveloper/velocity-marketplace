@@ -48,6 +48,8 @@ class SettingsPage
             return;
         }
 
+        wp_enqueue_editor();
+
         wp_register_script(
             'alpinejs',
             'https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js',
@@ -80,6 +82,16 @@ class SettingsPage
         if (!current_user_can('manage_options')) {
             return;
         }
+
+        $service = new SettingsService();
+        $settings_payload = $service->get_settings_payload();
+        $editor_settings = [
+            'textarea_rows' => 14,
+            'media_buttons' => false,
+            'teeny' => false,
+            'tinymce' => true,
+            'quicktags' => true,
+        ];
         ?>
         <div class="wrap">
             <h1><?php echo esc_html__('Pengaturan Velocity Marketplace', 'velocity-marketplace'); ?></h1>
@@ -199,8 +211,50 @@ class SettingsPage
                 .vmp-admin-settings__footer {
                     margin-top: 16px;
                 }
+                .vmp-email-settings__section + .vmp-email-settings__section {
+                    margin-top: 24px;
+                    padding-top: 24px;
+                    border-top: 1px solid #dcdcde;
+                }
+                .vmp-email-settings__title {
+                    margin: 0 0 6px;
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+                .vmp-email-settings__desc {
+                    margin: 0 0 16px;
+                    color: #50575e;
+                }
+                .vmp-email-settings__grid {
+                    display: grid;
+                    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+                    gap: 18px;
+                    align-items: start;
+                }
+                .vmp-email-settings__help {
+                    color: #50575e;
+                    font-size: 13px;
+                    line-height: 1.6;
+                }
+                .vmp-email-settings__help code {
+                    font-size: 12px;
+                }
+                .vmp-email-settings__field {
+                    margin-bottom: 16px;
+                }
+                .vmp-email-settings__field label {
+                    display: block;
+                    margin-bottom: 6px;
+                    font-weight: 600;
+                }
+                .vmp-email-settings__editor .wp-editor-wrap {
+                    width: 100%;
+                }
                 @media (max-width: 1100px) {
                     .vmp-bank-settings__row {
+                        grid-template-columns: 1fr;
+                    }
+                    .vmp-email-settings__grid {
                         grid-template-columns: 1fr;
                     }
                 }
@@ -216,6 +270,7 @@ class SettingsPage
                 <div class="vmp-settings-tabs" role="tablist" aria-label="<?php echo esc_attr__('Pengaturan Marketplace', 'velocity-marketplace'); ?>">
                     <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'general' }" @click="setTab('general')"><?php echo esc_html__('Pengaturan Umum', 'velocity-marketplace'); ?></button>
                     <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'bank' }" @click="setTab('bank')"><?php echo esc_html__('Pengaturan Bank', 'velocity-marketplace'); ?></button>
+                    <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'email' }" @click="setTab('email')"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></button>
                 </div>
 
                 <div class="vmp-settings-panel" :class="{ 'is-active': activeTab === 'general' }">
@@ -349,6 +404,80 @@ class SettingsPage
                                         </div>
                                     </div>
                                 </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vmp-settings-panel" :class="{ 'is-active': activeTab === 'email' }">
+                    <div class="vmp-settings-card">
+                        <h2 class="vmp-email-settings__title"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></h2>
+                        <p class="vmp-email-settings__desc"><?php echo esc_html__('Anda dapat mengatur template email di sini.', 'velocity-marketplace'); ?></p>
+
+                        <div class="vmp-email-settings__field">
+                            <label for="vmp_email_admin_recipient"><?php echo esc_html__('Email Admin', 'velocity-marketplace'); ?></label>
+                            <input id="vmp_email_admin_recipient" type="email" class="regular-text" x-model="form.email_admin_recipient" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+                            <p class="description"><?php echo esc_html__('Email admin untuk menerima email pesanan. Jika dikosongkan, otomatis menggunakan email admin website.', 'velocity-marketplace'); ?></p>
+                        </div>
+
+                        <div class="vmp-email-settings__section">
+                            <div class="vmp-email-settings__grid">
+                                <div class="vmp-email-settings__help">
+                                    <h3 class="vmp-email-settings__title"><?php echo esc_html__('Email Dikirim ke Admin', 'velocity-marketplace'); ?></h3>
+                                    <div><?php echo esc_html__('Bisa menggunakan shortcode berikut:', 'velocity-marketplace'); ?></div>
+                                    <div><code>[nama-toko]</code> <code>[kode-pesanan]</code> <code>[tanggal-order]</code></div>
+                                    <div><code>[detail-pesanan]</code> <code>[data-pemesan]</code></div>
+                                </div>
+                                <div class="vmp-email-settings__editor">
+                                    <?php
+                                    wp_editor(
+                                        (string) ($settings_payload['email_template_admin_order'] ?? ''),
+                                        'vmp_email_template_admin',
+                                        $editor_settings
+                                    );
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vmp-email-settings__section">
+                            <div class="vmp-email-settings__grid">
+                                <div class="vmp-email-settings__help">
+                                    <h3 class="vmp-email-settings__title"><?php echo esc_html__('Email Dikirim ke Pembeli', 'velocity-marketplace'); ?></h3>
+                                    <div><?php echo esc_html__('Bisa menggunakan shortcode berikut:', 'velocity-marketplace'); ?></div>
+                                    <div><code>[nama-pemesan]</code> <code>[nama-toko]</code> <code>[kode-pesanan]</code></div>
+                                    <div><code>[tanggal-order]</code> <code>[detail-pesanan]</code> <code>[total-order]</code></div>
+                                    <div><code>[nomor-rekening]</code> <code>[alamat-toko]</code></div>
+                                </div>
+                                <div class="vmp-email-settings__editor">
+                                    <?php
+                                    wp_editor(
+                                        (string) ($settings_payload['email_template_customer_order'] ?? ''),
+                                        'vmp_email_template_customer',
+                                        $editor_settings
+                                    );
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vmp-email-settings__section">
+                            <div class="vmp-email-settings__grid">
+                                <div class="vmp-email-settings__help">
+                                    <h3 class="vmp-email-settings__title"><?php echo esc_html__('Email Perubahan Status', 'velocity-marketplace'); ?></h3>
+                                    <div><?php echo esc_html__('Bisa menggunakan shortcode berikut:', 'velocity-marketplace'); ?></div>
+                                    <div><code>[link]</code> <code>[nama-toko]</code> <code>[kode-pesanan]</code> <code>[status]</code></div>
+                                    <div><code>[nama-pemesan]</code> <code>[alamat-toko]</code></div>
+                                </div>
+                                <div class="vmp-email-settings__editor">
+                                    <?php
+                                    wp_editor(
+                                        (string) ($settings_payload['email_template_status_update'] ?? ''),
+                                        'vmp_email_template_status',
+                                        $editor_settings
+                                    );
+                                    ?>
+                                </div>
                             </div>
                         </div>
                     </div>

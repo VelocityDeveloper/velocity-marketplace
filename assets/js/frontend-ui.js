@@ -8,6 +8,28 @@
   const { cfg, request, flashButtonLabel, money, wishlistIconSvg } = shared;
   const bootstrapApi = window.bootstrap || window.justg || null;
 
+  // Mengambil pilihan opsi produk dari blok inline yang berada satu wrapper dengan tombol add-to-cart.
+  const collectInlineOptions = (button) => {
+    const block = button.closest('.vmp-add-to-cart-block');
+    if (!block) {
+      return {};
+    }
+
+    const options = {};
+    const variantSelect = block.querySelector('[data-vmp-inline-option="variant"]');
+    const adjustmentSelect = block.querySelector('[data-vmp-inline-option="price_adjustment"]');
+
+    if (variantSelect && String(variantSelect.value || '').trim() !== '') {
+      options.variant = String(variantSelect.value || '').trim();
+    }
+
+    if (adjustmentSelect && String(adjustmentSelect.value || '').trim() !== '') {
+      options.price_adjustment = String(adjustmentSelect.value || '').trim();
+    }
+
+    return options;
+  };
+
   // Membuat dan mengelola modal pilihan produk sebelum item dimasukkan ke keranjang.
   const createCartOptionModal = () => {
     let modal = null;
@@ -246,8 +268,10 @@
 
         const productId = Number(cartButton.dataset.productId || 0);
         if (productId <= 0) return;
+        const optionStyle = String(cartButton.dataset.optionStyle || 'popup').trim();
+        const inlineOptions = optionStyle === 'inline' ? collectInlineOptions(cartButton) : {};
 
-        if (optionModal.hasSelectableOptions(cartButton)) {
+        if (optionStyle !== 'inline' && optionModal.hasSelectableOptions(cartButton)) {
           if (optionModal.openModal(cartButton)) {
             return;
           }
@@ -261,7 +285,7 @@
             body: JSON.stringify({
               id: productId,
               qty: 1,
-              options: {},
+              options: inlineOptions,
             }),
           });
           flashButtonLabel(cartButton, 'Ditambahkan');

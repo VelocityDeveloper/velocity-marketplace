@@ -38,6 +38,14 @@ class CartRepository
             return new \WP_Error('invalid_product', 'Produk tidak valid');
         }
 
+        $weight = (float) get_post_meta($product_id, 'weight', true);
+        if ($weight <= 0) {
+            return new \WP_Error(
+                'missing_weight',
+                sprintf('Produk "%s" belum memiliki berat. Lengkapi berat produk sebelum dimasukkan ke keranjang.', get_the_title($product_id))
+            );
+        }
+
         if ($this->is_logged_in()) {
             $this->upsert_user_meta_item($product_id, $qty, $options, $cart_key);
         } else {

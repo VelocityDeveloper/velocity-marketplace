@@ -63,6 +63,14 @@ class ProductActionHandler extends BaseActionHandler
             $this->redirect_with(['vmp_error' => 'Judul dan harga wajib diisi.', 'tab' => 'seller_products']);
         }
 
+        $validation = ProductFields::validate_submission('frontend');
+        if (is_wp_error($validation)) {
+            $this->redirect_with([
+                'vmp_error' => $validation->get_error_message(),
+                'tab' => 'seller_products',
+            ]);
+        }
+
         $status = $is_edit ? get_post_status($product_id) : Settings::seller_product_status();
         if (!in_array($status, ['pending', 'publish'], true)) {
             $status = 'publish';

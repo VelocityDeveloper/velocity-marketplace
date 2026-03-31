@@ -2,6 +2,7 @@
 
 namespace VelocityMarketplace\Core;
 
+use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Support\Settings;
 
 class SettingsService
@@ -47,6 +48,11 @@ class SettingsService
         }
 
         $shipping_api_key = isset($input['shipping_api_key']) ? sanitize_text_field((string) $input['shipping_api_key']) : '';
+        $email_defaults = EmailTemplateService::default_settings();
+        $email_admin_recipient = isset($input['email_admin_recipient']) ? sanitize_email((string) $input['email_admin_recipient']) : '';
+        $email_template_admin_order = isset($input['email_template_admin_order']) ? wp_kses_post((string) $input['email_template_admin_order']) : (string) $email_defaults['email_template_admin_order'];
+        $email_template_customer_order = isset($input['email_template_customer_order']) ? wp_kses_post((string) $input['email_template_customer_order']) : (string) $email_defaults['email_template_customer_order'];
+        $email_template_status_update = isset($input['email_template_status_update']) ? wp_kses_post((string) $input['email_template_status_update']) : (string) $email_defaults['email_template_status_update'];
         $bank_accounts = [];
         $popular_banks = Settings::popular_bank_labels();
 
@@ -109,6 +115,10 @@ class SettingsService
             'seller_product_status' => $seller_product_status,
             'shipping_api_key' => $shipping_api_key,
             'bank_accounts' => $bank_accounts,
+            'email_admin_recipient' => $email_admin_recipient,
+            'email_template_admin_order' => $email_template_admin_order,
+            'email_template_customer_order' => $email_template_customer_order,
+            'email_template_status_update' => $email_template_status_update,
         ];
     }
 
@@ -118,6 +128,8 @@ class SettingsService
         if (!is_array($settings)) {
             $settings = [];
         }
+
+        $email_defaults = EmailTemplateService::default_settings();
 
         $popular_banks = Settings::popular_bank_labels();
         $all_bank_accounts = isset($settings['bank_accounts']) && is_array($settings['bank_accounts']) ? array_values($settings['bank_accounts']) : [];
@@ -155,6 +167,16 @@ class SettingsService
             'shipping_api_key' => isset($settings['shipping_api_key']) ? (string) $settings['shipping_api_key'] : '',
             'popular_bank_accounts' => array_values($popular_bank_accounts),
             'custom_bank_accounts' => array_values($custom_bank_accounts),
+            'email_admin_recipient' => isset($settings['email_admin_recipient']) ? (string) $settings['email_admin_recipient'] : '',
+            'email_template_admin_order' => isset($settings['email_template_admin_order']) && (string) $settings['email_template_admin_order'] !== ''
+                ? (string) $settings['email_template_admin_order']
+                : (string) $email_defaults['email_template_admin_order'],
+            'email_template_customer_order' => isset($settings['email_template_customer_order']) && (string) $settings['email_template_customer_order'] !== ''
+                ? (string) $settings['email_template_customer_order']
+                : (string) $email_defaults['email_template_customer_order'],
+            'email_template_status_update' => isset($settings['email_template_status_update']) && (string) $settings['email_template_status_update'] !== ''
+                ? (string) $settings['email_template_status_update']
+                : (string) $email_defaults['email_template_status_update'],
         ];
     }
 

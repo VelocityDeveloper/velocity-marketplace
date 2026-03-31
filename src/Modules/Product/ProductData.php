@@ -3,6 +3,7 @@
 namespace VelocityMarketplace\Modules\Product;
 
 use VelocityMarketplace\Modules\Review\ReviewRepository;
+use VelocityMarketplace\Modules\Review\RatingRenderer;
 
 class ProductData
 {
@@ -22,6 +23,18 @@ class ProductData
         $gallery_ids = self::gallery_ids($post_id);
         $image = self::image_url($post_id, 'large', $gallery_ids);
         $review_summary = (new ReviewRepository())->product_summary($post_id);
+        $author_id = (int) get_post_field('post_author', $post_id);
+        $seller_city = $author_id > 0 ? (string) get_user_meta($author_id, 'vmp_store_city', true) : '';
+        $seller_last_active_at = $author_id > 0 ? (string) get_user_meta($author_id, 'vmp_last_active_at', true) : '';
+        $seller_last_active_text = '';
+        if ($seller_last_active_at !== '') {
+            $seller_last_active_ts = strtotime($seller_last_active_at);
+            if ($seller_last_active_ts) {
+                $seller_last_active_text = sprintf(__('%s yang lalu', 'velocity-marketplace'), human_time_diff($seller_last_active_ts, current_time('timestamp')));
+            }
+        }
+        $review_count = isset($review_summary['review_count']) ? (int) $review_summary['review_count'] : 0;
+        $rating_average = isset($review_summary['rating_average']) ? (float) $review_summary['rating_average'] : 0.0;
 
         return [
             'id' => $post_id,
@@ -31,7 +44,10 @@ class ProductData
             'gallery_ids' => $gallery_ids,
             'gallery' => self::gallery_urls($gallery_ids),
             'excerpt' => get_the_excerpt($post_id),
-            'author_id' => (int) get_post_field('post_author', $post_id),
+            'author_id' => $author_id,
+            'seller_city' => $seller_city,
+            'seller_last_active_at' => $seller_last_active_at,
+            'seller_last_active_text' => $seller_last_active_text,
             'price' => $price,
             'sale_price' => $sale_price,
             'sku' => self::meta_text($post_id, 'sku'),
@@ -44,8 +60,17 @@ class ProductData
             'variant_options' => $variant_options,
             'price_adjustment_name' => $price_adjustment_name,
             'price_adjustment_options' => $price_adjustment_options,
-            'review_count' => isset($review_summary['review_count']) ? (int) $review_summary['review_count'] : 0,
-            'rating_average' => isset($review_summary['rating_average']) ? (float) $review_summary['rating_average'] : 0.0,
+            'review_count' => $review_count,
+            'rating_average' => $rating_average,
+            'rating_html' => $review_count > 0
+                ? RatingRenderer::summary_html($rating_average, $review_count, [
+                    'size' => 14,
+                    'class' => 'small text-muted',
+                    'value_class' => 'text-muted',
+                    'count_class' => 'text-muted',
+                ])
+                : '',
+            'sold_count' => max(0, (int) self::meta_number($post_id, 'vmp_sold_count', 0)),
         ];
     }
 
@@ -241,6 +266,19 @@ class ProductData
     public static function no_image_url()
     {
         return VMP_URL . 'assets/img/no-image.webp';
+    }
+
+    public static function increment_sold_count($product_id, $qty = 1)
+    {
+        $product_id = (int) $product_id;
+        $qty = (int) $qty;
+
+        if ($product_id <= 0 || $qty <= 0 || get_post_type($product_id) !== 'vmp_product') {
+            return;
+        }
+
+        $current = (int) get_post_meta($product_id, 'vmp_sold_count', true);
+        update_post_meta($product_id, 'vmp_sold_count', max(0, $current + $qty));
     }
 
 }

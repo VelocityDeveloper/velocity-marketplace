@@ -6,6 +6,9 @@ use VelocityMarketplace\Modules\Cart\CartRepository;
 use VelocityMarketplace\Modules\Message\MessageRepository;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Product\ProductData;
+use VelocityMarketplace\Modules\Product\ProductQuery;
+use VelocityMarketplace\Modules\Product\RecentlyViewed;
+use VelocityMarketplace\Modules\Review\RatingRenderer;
 use VelocityMarketplace\Support\Settings;
 
 class Shortcode
@@ -17,15 +20,24 @@ class Shortcode
         add_shortcode('vmp_catalog', [$this, 'render_catalog']);
         add_shortcode('vmp_products', [$this, 'render_products']);
         add_shortcode('vmp_product_card', [$this, 'render_product_card']);
+        add_shortcode('vmp_product_gallery', [$this, 'render_product_gallery']);
+        add_shortcode('vmp_product_reviews', [$this, 'render_product_reviews']);
+        add_shortcode('vmp_product_seller_card', [$this, 'render_product_seller_card']);
+        add_shortcode('vmp_product_description', [$this, 'render_product_description']);
+        add_shortcode('vmp_recently_viewed', [$this, 'render_recently_viewed']);
         add_shortcode('vmp_thumbnail', [$this, 'render_thumbnail']);
         add_shortcode('vmp_price', [$this, 'render_price']);
         add_shortcode('vmp_add_to_cart', [$this, 'render_add_to_cart']);
         add_shortcode('vmp_add_to_wishlist', [$this, 'render_add_to_wishlist']);
+        add_shortcode('vmp_rating', [$this, 'render_rating']);
+        add_shortcode('vmp_review_count', [$this, 'render_review_count']);
+        add_shortcode('vmp_sold_count', [$this, 'render_sold_count']);
         add_shortcode('vmp_cart', [$this, 'render_cart']);
         add_shortcode('vmp_checkout', [$this, 'render_checkout']);
         add_shortcode('vmp_profile', [$this, 'render_profile']);
         add_shortcode('vmp_tracking', [$this, 'render_tracking']);
         add_shortcode('vmp_store_profile', [$this, 'render_store_profile']);
+        add_shortcode('vmp_product_filter', [$this, 'render_product_filter']);
         add_shortcode('vmp_messages_icon', [$this, 'render_messages_icon']);
         add_shortcode('vmp_notifications_icon', [$this, 'render_notifications_icon']);
         add_shortcode('vmp_profile_icon', [$this, 'render_profile_icon']);
@@ -114,6 +126,102 @@ class Shortcode
         return $this->render_product_card_markup($item);
     }
 
+    public function render_product_gallery($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'id' => 0,
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        return Template::render('product-gallery', [
+            'product_id' => $product_id,
+        ]);
+    }
+
+    public function render_product_reviews($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'id' => 0,
+            'limit' => 20,
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        return Template::render('product-reviews', [
+            'product_id' => $product_id,
+            'limit' => max(1, min(100, (int) $atts['limit'])),
+        ]);
+    }
+
+    public function render_product_seller_card($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'id' => 0,
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        return Template::render('product-seller-card', [
+            'product_id' => $product_id,
+        ]);
+    }
+
+    public function render_product_description($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'id' => 0,
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        return Template::render('product-description', [
+            'product_id' => $product_id,
+        ]);
+    }
+
+    public function render_recently_viewed($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'limit' => 4,
+            'exclude_current' => 'true',
+            'title' => __('Produk yang Baru Dilihat', 'velocity-marketplace'),
+        ], $atts);
+
+        $exclude_id = filter_var($atts['exclude_current'], FILTER_VALIDATE_BOOLEAN) ? $this->resolve_product_id(0) : 0;
+        $items = RecentlyViewed::items($exclude_id, (int) $atts['limit']);
+        if (empty($items)) {
+            return '';
+        }
+
+        return Template::render('product-recently-viewed', [
+            'title' => (string) $atts['title'],
+            'items' => $items,
+        ]);
+    }
+
     public function render_thumbnail($atts = [])
     {
         $this->ensure_frontend_assets();
@@ -177,6 +285,7 @@ class Shortcode
             'id' => 0,
             'text' => __('Tambah Keranjang', 'velocity-marketplace'),
             'class' => 'btn btn-sm btn-dark',
+            'style' => 'popup',
         ], $atts);
 
         $product_id = $this->resolve_product_id((int) $atts['id']);
@@ -192,7 +301,8 @@ class Shortcode
         return $this->render_add_to_cart_markup(
             $item,
             (string) $atts['text'],
-            (string) $atts['class']
+            (string) $atts['class'],
+            (string) $atts['style']
         );
     }
 
@@ -224,6 +334,95 @@ class Shortcode
             (string) $atts['text'],
             (string) $atts['class'],
             $active
+        );
+    }
+
+    public function render_rating($atts = [])
+    {
+        $atts = shortcode_atts([
+            'type' => 'value',
+            'id' => 0,
+            'value' => 0,
+            'count' => '',
+            'size' => 16,
+            'show_value' => 'true',
+            'show_count' => 'true',
+            'class' => '',
+            'stars_class' => '',
+            'value_class' => '',
+            'count_class' => '',
+            'count_text' => __('ulasan', 'velocity-marketplace'),
+        ], $atts);
+
+        $type = sanitize_key((string) $atts['type']);
+        $id = (int) $atts['id'];
+        $args = [
+            'size' => max(10, (int) $atts['size']),
+            'show_value' => filter_var($atts['show_value'], FILTER_VALIDATE_BOOLEAN),
+            'show_count' => filter_var($atts['show_count'], FILTER_VALIDATE_BOOLEAN),
+            'class' => sanitize_text_field((string) $atts['class']),
+            'stars_class' => sanitize_text_field((string) $atts['stars_class']),
+            'value_class' => sanitize_text_field((string) $atts['value_class']),
+            'count_class' => sanitize_text_field((string) $atts['count_class']),
+            'count_text' => sanitize_text_field((string) $atts['count_text']),
+        ];
+
+        if ($type === 'product' && $id > 0) {
+            return RatingRenderer::product_summary_html($id, $args);
+        }
+
+        if ($type === 'seller' && $id > 0) {
+            return RatingRenderer::seller_summary_html($id, $args);
+        }
+
+        $count = $atts['count'] === '' ? null : (int) $atts['count'];
+        return RatingRenderer::summary_html((float) $atts['value'], $count, $args);
+    }
+
+    public function render_review_count($atts = [])
+    {
+        $atts = shortcode_atts([
+            'id' => 0,
+            'class' => '',
+            'suffix' => __('ulasan', 'velocity-marketplace'),
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        $summary = (new \VelocityMarketplace\Modules\Review\ReviewRepository())->product_summary($product_id);
+        $count = (int) ($summary['review_count'] ?? 0);
+        $class = trim((string) $atts['class']);
+
+        return sprintf(
+            '<span class="%1$s">%2$s</span>',
+            esc_attr($class),
+            esc_html(sprintf(__('%1$d %2$s', 'velocity-marketplace'), $count, (string) $atts['suffix']))
+        );
+    }
+
+    public function render_sold_count($atts = [])
+    {
+        $atts = shortcode_atts([
+            'id' => 0,
+            'class' => '',
+            'suffix' => __('terjual', 'velocity-marketplace'),
+        ], $atts);
+
+        $product_id = $this->resolve_product_id((int) $atts['id']);
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        $count = (int) get_post_meta($product_id, 'vmp_sold_count', true);
+        $class = trim((string) $atts['class']);
+
+        return sprintf(
+            '<span class="%1$s">%2$s</span>',
+            esc_attr($class),
+            esc_html(sprintf(__('%1$d %2$s', 'velocity-marketplace'), max(0, $count), (string) $atts['suffix']))
         );
     }
 
@@ -291,6 +490,44 @@ class Shortcode
 
         return Template::render('store-profile', [
             'seller_id' => $seller_id,
+        ]);
+    }
+
+    public function render_product_filter($atts = [])
+    {
+        $this->ensure_frontend_assets();
+
+        $atts = shortcode_atts([
+            'action' => '',
+            'class' => '',
+        ], $atts);
+
+        $action_url = trim((string) $atts['action']);
+        if ($action_url === '') {
+            if (is_post_type_archive('vmp_product')) {
+                $action_url = get_post_type_archive_link('vmp_product');
+            } else {
+                $pages = get_option(VMP_PAGES_OPTION, []);
+                if (is_array($pages) && !empty($pages['katalog'])) {
+                    $page_url = get_permalink((int) $pages['katalog']);
+                    $action_url = $page_url ? $page_url : site_url('/catalog/');
+                } else {
+                    $action_url = site_url('/catalog/');
+                }
+            }
+        }
+
+        $product_query = new ProductQuery();
+
+        return Template::render('product-filter-form', [
+            'filters' => $product_query->normalize_filters($_GET),
+            'categories' => get_terms([
+                'taxonomy' => 'vmp_product_cat',
+                'hide_empty' => false,
+            ]),
+            'label_options' => $product_query->label_options(),
+            'action_url' => $action_url,
+            'form_class' => sanitize_text_field((string) $atts['class']),
         ]);
     }
 
@@ -499,7 +736,7 @@ class Shortcode
         }
         $html .= $this->render_price_markup($item, '', Settings::currency_symbol());
         $html .= '<div class="small text-muted mb-3">' . esc_html($stock_text) . '</div>';
-        $html .= '<div class="mt-auto d-flex gap-2">';
+        $html .= '<div class="mt-auto d-flex gap-2 vmp-product-card__actions">';
         $html .= $this->render_add_to_cart_markup($item, __('Tambah Keranjang', 'velocity-marketplace'), 'btn btn-sm btn-dark flex-grow-1');
         $html .= $this->render_add_to_wishlist_markup($product_id, __('Wishlist', 'velocity-marketplace'), 'btn btn-sm btn-outline-secondary vmp-wishlist-button', $wishlist_active);
         $html .= '</div></div></div>';
@@ -534,7 +771,7 @@ class Shortcode
         return '<div class="vmp-price-wrap mb-1' . ($price_html_class !== '' ? ' ' . esc_attr($price_html_class) : '') . '"><div class="fw-semibold text-danger">' . esc_html((string) $currency_symbol . ' ' . number_format($price, 0, ',', '.')) . '</div></div>';
     }
 
-    private function render_add_to_cart_markup($item, $text = '', $class_name = 'btn btn-sm btn-dark')
+    private function render_add_to_cart_markup($item, $text = '', $class_name = 'btn btn-sm btn-dark', $style = 'popup')
     {
         $item = is_array($item) ? $item : [];
         $product_id = isset($item['id']) ? (int) $item['id'] : 0;
@@ -543,6 +780,10 @@ class Shortcode
         }
 
         $text = $text !== '' ? (string) $text : __('Tambah Keranjang', 'velocity-marketplace');
+        $style = sanitize_key((string) $style);
+        if (!in_array($style, ['popup', 'inline'], true)) {
+            $style = 'popup';
+        }
 
         $payload = [
             'title' => (string) ($item['title'] ?? ''),
@@ -552,7 +793,65 @@ class Shortcode
             'price_adjustment_options' => array_values((array) ($item['price_adjustment_options'] ?? [])),
         ];
 
-        return '<button type="button" class="' . esc_attr(trim((string) $class_name)) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-default-label="' . esc_attr((string) $text) . '">' . esc_html((string) $text) . '</button>';
+        $html = '<div class="vmp-add-to-cart-block" data-vmp-add-to-cart-style="' . esc_attr($style) . '">';
+
+        if ($style === 'inline') {
+            $html .= $this->render_inline_add_to_cart_options($payload);
+        }
+
+        $html .= '<button type="button" class="' . esc_attr(trim((string) $class_name)) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-option-style="' . esc_attr($style) . '" data-default-label="' . esc_attr((string) $text) . '">' . esc_html((string) $text) . '</button>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    private function render_inline_add_to_cart_options($payload = [])
+    {
+        $payload = is_array($payload) ? $payload : [];
+        $variant_name = isset($payload['variant_name']) ? (string) $payload['variant_name'] : '';
+        $variant_options = isset($payload['variant_options']) && is_array($payload['variant_options'])
+            ? array_values(array_filter(array_map('strval', $payload['variant_options'])))
+            : [];
+        $price_adjustment_name = isset($payload['price_adjustment_name']) ? (string) $payload['price_adjustment_name'] : '';
+        $price_adjustment_options = isset($payload['price_adjustment_options']) && is_array($payload['price_adjustment_options'])
+            ? array_values($payload['price_adjustment_options'])
+            : [];
+
+        if (empty($variant_options) && empty($price_adjustment_options)) {
+            return '';
+        }
+
+        $html = '<div class="vmp-inline-product-options d-grid gap-2 mb-2">';
+
+        if (!empty($variant_options)) {
+            $html .= '<div class="vmp-inline-product-options__group">';
+            $html .= '<label class="form-label small mb-1">' . esc_html($variant_name !== '' ? $variant_name : __('Pilihan Varian', 'velocity-marketplace')) . '</label>';
+            $html .= '<select class="form-select form-select-sm" data-vmp-inline-option="variant">';
+            foreach ($variant_options as $index => $option_label) {
+                $html .= '<option value="' . esc_attr($option_label) . '"' . selected($index, 0, false) . '>' . esc_html($option_label) . '</option>';
+            }
+            $html .= '</select></div>';
+        }
+
+        if (!empty($price_adjustment_options)) {
+            $html .= '<div class="vmp-inline-product-options__group">';
+            $html .= '<label class="form-label small mb-1">' . esc_html($price_adjustment_name !== '' ? $price_adjustment_name : __('Pilihan Harga', 'velocity-marketplace')) . '</label>';
+            $html .= '<select class="form-select form-select-sm" data-vmp-inline-option="price_adjustment">';
+            foreach ($price_adjustment_options as $index => $option_row) {
+                $option_label = isset($option_row['label']) ? (string) $option_row['label'] : '';
+                if ($option_label === '') {
+                    continue;
+                }
+                $amount = isset($option_row['amount']) ? (float) $option_row['amount'] : 0.0;
+                $suffix = $amount > 0 ? ' (+' . Settings::currency_symbol() . ' ' . number_format($amount, 0, ',', '.') . ')' : '';
+                $html .= '<option value="' . esc_attr($option_label) . '"' . selected($index, 0, false) . '>' . esc_html($option_label . $suffix) . '</option>';
+            }
+            $html .= '</select></div>';
+        }
+
+        $html .= '</div>';
+
+        return $html;
     }
 
     private function render_add_to_wishlist_markup($product_id, $text = '', $class_name = 'btn btn-sm btn-outline-secondary vmp-wishlist-button', $active = false)

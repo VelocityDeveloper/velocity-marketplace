@@ -21,9 +21,9 @@ if (!is_user_logged_in()) {
         <div class="card border-0 shadow-sm">
             <div class="card-body">
                 <h3 class="h5 mb-2"><?php echo esc_html__('Akses Akun', 'velocity-marketplace'); ?></h3>
-                <p class="text-muted mb-3"><?php echo esc_html__('Sign in or register to access orders, profile, messages, and store management from one dashboard.', 'velocity-marketplace'); ?></p>
+                <p class="text-muted mb-3"><?php echo esc_html__('Masuk atau daftar untuk mengakses pesanan, profil, pesan, dan pengelolaan toko dari satu dashboard.', 'velocity-marketplace'); ?></p>
                 <div class="d-flex flex-wrap gap-2">
-                    <a href="<?php echo esc_url($login_url); ?>" class="btn btn-dark"><?php echo esc_html__('Sign In', 'velocity-marketplace'); ?></a>
+                    <a href="<?php echo esc_url($login_url); ?>" class="btn btn-dark"><?php echo esc_html__('Masuk', 'velocity-marketplace'); ?></a>
                     <?php if (get_option('users_can_register')) : ?>
                         <a href="<?php echo esc_url($register_url); ?>" class="btn btn-primary"><?php echo esc_html__('Daftar Akun', 'velocity-marketplace'); ?></a>
                     <?php endif; ?>
@@ -138,9 +138,9 @@ $account_tabs = [
 $store_tabs = [];
 if ($can_sell) {
     $store_tabs = [
-        ['key' => 'seller_home', 'label' => __('Store Home', 'velocity-marketplace')],
-        ['key' => 'seller_report', 'label' => __('Reports', 'velocity-marketplace')],
-        ['key' => 'seller_products', 'label' => __('Products', 'velocity-marketplace')],
+        ['key' => 'seller_home', 'label' => __('Beranda Toko', 'velocity-marketplace')],
+        ['key' => 'seller_report', 'label' => __('Laporan', 'velocity-marketplace')],
+        ['key' => 'seller_products', 'label' => __('Produk', 'velocity-marketplace')],
         ['key' => 'seller_profile', 'label' => __('Profil Toko', 'velocity-marketplace')],
     ];
 }
@@ -169,7 +169,7 @@ $active_submenu = $active_menu === 'store' ? $store_tabs : $account_tabs;
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
             <h2 class="h4 mb-0"><?php echo esc_html__('Akun Saya', 'velocity-marketplace'); ?></h2>
-            <small class="text-muted"><?php echo esc_html__('Manage orders, profile, messages, and store activity from one dashboard.', 'velocity-marketplace'); ?></small>
+            <small class="text-muted"><?php echo esc_html__('Kelola pesanan, profil, pesan, dan aktivitas toko dari satu dashboard.', 'velocity-marketplace'); ?></small>
         </div>
         <a href="<?php echo esc_url($logout_url); ?>" class="btn btn-sm btn-outline-dark"><?php echo esc_html__('Log Out', 'velocity-marketplace'); ?></a>
     </div>

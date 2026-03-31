@@ -19,6 +19,10 @@ class Settings
             'seller_product_status' => 'publish',
             'shipping_api_key' => '',
             'bank_accounts' => [],
+            'email_admin_recipient' => '',
+            'email_template_admin_order' => '',
+            'email_template_customer_order' => '',
+            'email_template_status_update' => '',
         ];
 
         return array_merge($defaults, $settings);
@@ -109,6 +113,25 @@ class Settings
         $seller_id = (int) $seller_id;
         if ($seller_id > 0) {
             return add_query_arg(['seller' => $seller_id], $base);
+        }
+
+        return $base;
+    }
+
+    public static function tracking_url($invoice = '')
+    {
+        $pages = get_option(VMP_PAGES_OPTION, []);
+        $base = '';
+        if (is_array($pages) && !empty($pages['tracking'])) {
+            $base = get_permalink((int) $pages['tracking']);
+        }
+        if (!$base) {
+            $base = site_url('/order-tracking/');
+        }
+
+        $invoice = trim((string) $invoice);
+        if ($invoice !== '') {
+            return add_query_arg(['invoice' => $invoice], $base);
         }
 
         return $base;

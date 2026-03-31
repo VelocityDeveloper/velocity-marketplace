@@ -26,6 +26,7 @@ namespace VelocityMarketplace\Modules\Product;
  *   - `options` opsi untuk select/radio
  *   - `multiple` bool untuk field file multi-attachment
  *   - `media_library` bool untuk field file berbasis media library
+ *   - `required` bool untuk field yang wajib diisi
  *
  * Tipe field yang didukung:
  * - `text`
@@ -148,9 +149,10 @@ class ProductFields
                         'id' => 'weight',
                         'type' => 'number',
                         'placeholder' => '0',
-                        'desc' => 'Dipakai untuk perhitungan ongkir.',
-                        'min' => 0,
-                        'step' => 0.01,
+                        'desc' => 'Wajib diisi untuk perhitungan ongkir. Gunakan angka lebih dari 0.',
+                        'min' => 0.001,
+                        'step' => 0.001,
+                        'required' => true,
                     ],
                     [
                         'name' => 'Minimal Order',
@@ -346,9 +348,11 @@ class ProductFields
         $label = isset($field['name']) ? (string) $field['name'] : $meta_key;
         $placeholder = isset($field['placeholder']) ? (string) $field['placeholder'] : '';
         $desc = isset($field['desc']) ? (string) $field['desc'] : '';
+        $required = !empty($field['required']);
         $min = isset($field['min']) && $field['min'] !== '' ? ' min="' . esc_attr((string) $field['min']) . '"' : '';
         $step = isset($field['step']) && $field['step'] !== '' ? ' step="' . esc_attr((string) $field['step']) . '"' : '';
         $placeholder_attr = $placeholder !== '' ? ' placeholder="' . esc_attr($placeholder) . '"' : '';
+        $required_attr = $required ? ' required' : '';
         $col_class = !empty($field['full_width']) ? 'col-12' : 'col-md-6';
 
         ob_start();
@@ -364,9 +368,9 @@ class ProductFields
             <?php else : ?>
                 <label class="form-label" for="<?php echo esc_attr($meta_key); ?>"><?php echo esc_html($label); ?></label>
                 <?php if ($type === 'textarea') : ?>
-                    <textarea id="<?php echo esc_attr($meta_key); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-control" rows="<?php echo esc_attr((string) ($field['rows'] ?? 4)); ?>"<?php echo $placeholder_attr; ?>><?php echo esc_textarea($value); ?></textarea>
+                    <textarea id="<?php echo esc_attr($meta_key); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-control" rows="<?php echo esc_attr((string) ($field['rows'] ?? 4)); ?>"<?php echo $placeholder_attr; ?><?php echo $required_attr; ?>><?php echo esc_textarea($value); ?></textarea>
                 <?php elseif ($type === 'select') : ?>
-                    <select id="<?php echo esc_attr($meta_key); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-select">
+                    <select id="<?php echo esc_attr($meta_key); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-select"<?php echo $required_attr; ?>>
                         <?php foreach ((array) ($field['options'] ?? []) as $option_value => $option_label) : ?>
                             <option value="<?php echo esc_attr((string) $option_value); ?>" <?php selected($value, (string) $option_value); ?>><?php echo esc_html((string) $option_label); ?></option>
                         <?php endforeach; ?>
@@ -423,7 +427,7 @@ class ProductFields
                         $html_type = 'text';
                     }
                     ?>
-                    <input id="<?php echo esc_attr($meta_key); ?>" type="<?php echo esc_attr($html_type); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-control" value="<?php echo esc_attr($value); ?>"<?php echo $placeholder_attr; ?><?php echo $min; ?><?php echo $step; ?>>
+                    <input id="<?php echo esc_attr($meta_key); ?>" type="<?php echo esc_attr($html_type); ?>" name="<?php echo esc_attr($meta_key); ?>" class="form-control" value="<?php echo esc_attr($value); ?>"<?php echo $placeholder_attr; ?><?php echo $min; ?><?php echo $step; ?><?php echo $required_attr; ?>>
                 <?php endif; ?>
                 <?php if ($desc !== '' && $type !== 'checkbox') : ?><div class="form-text"><?php echo esc_html($desc); ?></div><?php endif; ?>
             <?php endif; ?>
@@ -450,6 +454,44 @@ class ProductFields
             $value = self::sanitize_value($field, $raw);
             update_post_meta($post_id, $meta_key, $value);
         }
+    }
+
+    public static function validate_submission($context = 'frontend')
+    {
+        foreach (self::get_fields($context) as $field) {
+            $meta_key = (string) ($field['id'] ?? '');
+            if ($meta_key === '' || empty($field['required'])) {
+                continue;
+            }
+
+            $raw = isset($_POST[$meta_key]) ? wp_unslash($_POST[$meta_key]) : '';
+            $label = isset($field['name']) ? (string) $field['name'] : $meta_key;
+            $type = isset($field['type']) ? (string) $field['type'] : 'text';
+
+            if ($type === 'number') {
+                if ($raw === '' || !is_numeric($raw)) {
+                    return new \WP_Error('required_field', sprintf(__('%s wajib diisi.', 'velocity-marketplace'), $label));
+                }
+
+                $value = (float) $raw;
+                $min = isset($field['min']) && is_numeric($field['min']) ? (float) $field['min'] : null;
+                if ($min !== null && $value < $min) {
+                    return new \WP_Error('min_field', sprintf(__('%s harus lebih besar dari 0 untuk menghitung ongkir.', 'velocity-marketplace'), $label));
+                }
+
+                continue;
+            }
+
+            if (is_string($raw)) {
+                $raw = trim($raw);
+            }
+
+            if ($raw === '' || $raw === null || $raw === []) {
+                return new \WP_Error('required_field', sprintf(__('%s wajib diisi.', 'velocity-marketplace'), $label));
+            }
+        }
+
+        return true;
     }
 
     public static function sanitize_value($field, $raw)

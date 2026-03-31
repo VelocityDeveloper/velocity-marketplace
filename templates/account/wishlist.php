@@ -35,6 +35,10 @@ else :
 
                         <?php echo do_shortcode('[vmp_price id="' . (int) $item['id'] . '"]'); ?>
 
+                        <?php if (!empty($item['seller_city'])) : ?>
+                            <div class="small text-muted mb-1"><?php echo esc_html((string) $item['seller_city']); ?></div>
+                        <?php endif; ?>
+
                         <div class="small text-muted mb-3">
                             <?php
                             if ($item['stock'] === null || $item['stock'] === '') {

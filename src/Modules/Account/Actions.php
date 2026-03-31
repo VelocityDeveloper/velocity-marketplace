@@ -44,6 +44,9 @@ class Actions
             case 'buyer_upload_transfer':
                 (new OrderActionHandler())->buyer_upload_transfer();
                 return;
+            case 'buyer_confirm_received':
+                (new OrderActionHandler())->buyer_confirm_received();
+                return;
             case 'save_store_profile':
                 (new ProfileActionHandler())->save_store_profile();
                 return;

@@ -5,10 +5,130 @@
     return;
   }
 
-  const { cfg, api, request, money, placeholder, wishlistIconSvg } = shared;
+  const {
+    cfg,
+    api,
+    request,
+    money,
+    placeholder,
+    wishlistIconSvg,
+    fetchShippingList,
+    mapProvince,
+    mapCity,
+    mapSubdistrict,
+  } = shared;
+
+  // Menyediakan state filter lokasi toko bertingkat untuk form katalog dan archive.
+  const createLocationState = (initial = {}) => ({
+    provinces: [],
+    cities: [],
+    subdistricts: [],
+    locationError: '',
+    isLoadingProvinces: false,
+    isLoadingCities: false,
+    isLoadingSubdistricts: false,
+    storeProvinceId: String(initial.storeProvinceId || ''),
+    storeCityId: String(initial.storeCityId || ''),
+    storeSubdistrictId: String(initial.storeSubdistrictId || ''),
+    async loadProvinces() {
+      if (this.provinces.length > 0 || this.isLoadingProvinces) {
+        return;
+      }
+
+      this.isLoadingProvinces = true;
+      this.locationError = '';
+      try {
+        const rows = await fetchShippingList('shipping/provinces');
+        this.provinces = rows.map(mapProvince);
+      } catch (e) {
+        this.locationError = e.message || 'Daftar provinsi tidak dapat dimuat.';
+      } finally {
+        this.isLoadingProvinces = false;
+      }
+    },
+    async loadCities(provinceId) {
+      if (!provinceId) {
+        this.cities = [];
+        return;
+      }
+
+      this.isLoadingCities = true;
+      this.locationError = '';
+      try {
+        const rows = await fetchShippingList(`shipping/cities?province=${encodeURIComponent(provinceId)}`);
+        this.cities = rows.map(mapCity);
+      } catch (e) {
+        this.cities = [];
+        this.locationError = e.message || 'Daftar kota tidak dapat dimuat.';
+      } finally {
+        this.isLoadingCities = false;
+      }
+    },
+    async loadSubdistricts(cityId) {
+      if (!cityId) {
+        this.subdistricts = [];
+        return;
+      }
+
+      this.isLoadingSubdistricts = true;
+      this.locationError = '';
+      try {
+        const rows = await fetchShippingList(`shipping/subdistricts?city=${encodeURIComponent(cityId)}`);
+        this.subdistricts = rows.map(mapSubdistrict);
+      } catch (e) {
+        this.subdistricts = [];
+        this.locationError = e.message || 'Daftar kecamatan tidak dapat dimuat.';
+      } finally {
+        this.isLoadingSubdistricts = false;
+      }
+    },
+    async initLocation() {
+      await this.loadProvinces();
+
+      if (this.storeProvinceId) {
+        await this.loadCities(this.storeProvinceId);
+      }
+
+      if (this.storeCityId) {
+        await this.loadSubdistricts(this.storeCityId);
+      }
+    },
+    async onStoreProvinceChange() {
+      this.storeCityId = '';
+      this.storeSubdistrictId = '';
+      this.cities = [];
+      this.subdistricts = [];
+      await this.loadCities(this.storeProvinceId);
+      if (typeof this.onLocationFilterChange === 'function') {
+        this.onLocationFilterChange();
+      }
+    },
+    async onStoreCityChange() {
+      this.storeSubdistrictId = '';
+      this.subdistricts = [];
+      await this.loadSubdistricts(this.storeCityId);
+      if (typeof this.onLocationFilterChange === 'function') {
+        this.onLocationFilterChange();
+      }
+    },
+    onStoreSubdistrictChange() {
+      if (typeof this.onLocationFilterChange === 'function') {
+        this.onLocationFilterChange();
+      }
+    },
+    resetLocationFilters() {
+      this.storeProvinceId = '';
+      this.storeCityId = '';
+      this.storeSubdistrictId = '';
+      this.cities = [];
+      this.subdistricts = [];
+      this.locationError = '';
+    },
+  });
 
   // Menyediakan state Alpine untuk filter, pagination, dan aksi katalog.
   const vmpCatalog = (perPage = 12) => ({
+    ...createLocationState(),
     loading: false,
     items: [],
     wishlistIds: [],
@@ -27,6 +147,7 @@
     perPage,
     // Memuat wishlist user dan halaman katalog pertama saat komponen aktif.
     async init() {
+      await this.initLocation();
       if (cfg.isLoggedIn) {
         await this.fetchWishlist();
       }
@@ -56,6 +177,9 @@
         if (this.cat) url.searchParams.set('cat', this.cat);
         if (this.label) url.searchParams.set('label', this.label);
         if (this.storeType) url.searchParams.set('store_type', this.storeType);
+        if (this.storeProvinceId) url.searchParams.set('store_province_id', this.storeProvinceId);
+        if (this.storeCityId) url.searchParams.set('store_city_id', this.storeCityId);
+        if (this.storeSubdistrictId) url.searchParams.set('store_subdistrict_id', this.storeSubdistrictId);
         if (this.minPrice !== '' && this.minPrice !== null) {
           url.searchParams.set('min_price', String(this.minPrice));
         }
@@ -112,6 +236,7 @@
       this.storeType = '';
       this.minPrice = '';
       this.maxPrice = '';
+      this.resetLocationFilters();
       this.fetchProducts(1);
     },
     // Menambahkan produk dari katalog ke keranjang dengan opsi default teraman.
@@ -177,9 +302,19 @@
     },
   });
 
+  // Menyediakan state Alpine untuk form filter lokasi pada archive native.
+  const vmpArchiveFilter = (initial = {}) => ({
+    ...createLocationState(initial),
+    async init() {
+      await this.initLocation();
+    },
+  });
+
   window.vmpCatalog = vmpCatalog;
+  window.vmpArchiveFilter = vmpArchiveFilter;
   document.addEventListener('alpine:init', () => {
     Alpine.data('vmpCatalog', vmpCatalog);
+    Alpine.data('vmpArchiveFilter', vmpArchiveFilter);
   });
 })();
 

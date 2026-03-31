@@ -34,6 +34,9 @@ Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, 
   - pengaturan kurir toko: user meta
   - role marketplace: `vmp_member`
   - badge star seller: user meta hasil evaluasi otomatis
+- Penyimpanan cart:
+  - user login: user meta `vmp_cart_items`
+  - guest: cookie `vmp_guest_cart`
 
 - Skema profil member:
   - `first_name` / `display_name` / `nickname` (WordPress core)
@@ -60,10 +63,16 @@ Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, 
   - `vmp_store_postcode`
   - `vmp_store_description`
   - `vmp_store_avatar_id`
+  - `vmp_store_bank_details`
   - `vmp_couriers`
   - `vmp_cod_enabled`
   - `vmp_cod_city_ids`
   - `vmp_cod_city_names`
+
+- Meta agregat produk:
+  - `vmp_review_count`
+  - `vmp_rating_average`
+  - `vmp_sold_count`
 
 ## Shortcode resmi
 
@@ -72,8 +81,16 @@ Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan 
 - `[vmp_catalog]`
 - `[vmp_products]`
 - `[vmp_product_card]`
+- `[vmp_product_gallery]`
+- `[vmp_product_reviews]`
+- `[vmp_product_seller_card]`
+- `[vmp_product_description]`
+- `[vmp_product_filter]`
 - `[vmp_thumbnail]`
 - `[vmp_price]`
+- `[vmp_rating]`
+- `[vmp_review_count]`
+- `[vmp_sold_count]`
 - `[vmp_add_to_cart]`
 - `[vmp_add_to_wishlist]`
 - `[vmp_cart]`
@@ -82,6 +99,93 @@ Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan 
 - `[vmp_profile]`
 - `[vmp_tracking]`
 - `[vmp_store_profile]`
+- `[vmp_messages_icon]`
+- `[vmp_notifications_icon]`
+- `[vmp_profile_icon]`
+
+### Ringkasan shortcode baru
+
+- `[vmp_product_filter]`
+  - render form filter saja
+  - cocok untuk Beaver Builder / Themer karena hasil filter memakai query string + `pre_get_posts`
+
+- `[vmp_product_gallery]`
+  - render galeri produk lengkap
+  - support current single product context tanpa isi `id`
+
+- `[vmp_product_reviews]`
+  - render ringkasan dan daftar ulasan produk
+  - support current single product context tanpa isi `id`
+  - atribut:
+    - `id`
+    - `limit`
+
+- `[vmp_product_seller_card]`
+  - render kartu seller pada halaman produk
+  - support current single product context tanpa isi `id`
+
+- `[vmp_product_description]`
+  - render deskripsi produk dengan format konten WordPress
+  - support current single product context tanpa isi `id`
+
+- `[vmp_rating]`
+  - renderer rating reusable untuk product, seller, atau nilai custom
+  - contoh:
+    - `[vmp_rating type="product" id="123"]`
+    - `[vmp_rating type="seller" id="45" show_count="false"]`
+    - `[vmp_rating type="value" value="4.5" count="12" size="14"]`
+  - atribut penting:
+    - `type="product|seller|value"`
+    - `id`
+    - `value`
+    - `count`
+    - `size`
+    - `show_value="true|false"`
+    - `show_count="true|false"`
+    - `class`
+    - `stars_class`
+    - `value_class`
+    - `count_class`
+
+- `[vmp_review_count]`
+  - tampilkan jumlah ulasan produk
+  - contoh:
+    - `[vmp_review_count id="123"]`
+
+- `[vmp_sold_count]`
+  - tampilkan jumlah terjual produk
+  - contoh:
+    - `[vmp_sold_count id="123"]`
+
+- `[vmp_add_to_cart]`
+  - render tombol tambah keranjang reusable
+  - support current single product context tanpa isi `id`
+  - atribut:
+    - `id`
+    - `text`
+    - `class`
+    - `style="popup|inline"`
+  - perilaku:
+    - `popup`
+      - default
+      - jika produk punya opsi, pilihan muncul lewat modal
+    - `inline`
+      - jika produk punya opsi, pilihan tampil langsung di atas tombol
+      - cocok untuk Beaver Builder / Themer yang ingin layout form lebih terbuka
+  - contoh:
+    - `[vmp_add_to_cart id="123"]`
+    - `[vmp_add_to_cart id="123" style="inline" class="btn btn-dark w-100"]`
+
+- `[vmp_cart]`
+  - render icon trigger cart
+  - panel offcanvas cart hanya dimuat sekali di footer
+
+- `[vmp_cart_page]`
+  - render halaman keranjang penuh
+
+- `[vmp_messages_icon]`, `[vmp_notifications_icon]`, `[vmp_profile_icon]`
+  - shortcut icon untuk header / builder
+  - cocok dipakai lebih dari satu kali karena markup-nya ringan
 
 ## Halaman default
 
@@ -197,6 +301,7 @@ Installer akan membuat page ini jika belum ada:
   - daftar semua shortcode resmi `vmp_*`
   - render halaman page-level
   - render blok produk reusable
+  - render helper shortcode rating / review count / sold count
 
 - `Template.php`
   - helper locate dan render template
@@ -307,10 +412,15 @@ Catatan:
 
 - `ReviewRepository.php`
   - simpan ulasan produk
-  - validasi verified purchase
+  - validasi verified purchase / status grup toko selesai
   - agregat rating produk
   - agregat rating seller
   - simpan foto review
+
+- `RatingRenderer.php`
+  - helper renderer rating reusable
+  - dipakai oleh template PHP dan shortcode
+  - support `star-fill`, `star-half`, dan pembulatan rating ke langkah `0.5`
 
 - `ReviewTable.php`
   - create table `wp_vmp_reviews`
@@ -359,6 +469,8 @@ Catatan:
   - gallery
   - harga aktif
   - opsi produk
+  - ringkasan rating HTML siap pakai untuk loop katalog/archive
+  - sold count produk
 
 - `ProductFields.php`
   - schema field produk
@@ -401,6 +513,8 @@ Catatan:
 - `catalog.php`
   - halaman katalog utama
   - advance filter produk
+  - loop produk via REST + Alpine
+  - menerima `rating_html` dari mapper produk
 
 - `cart.php`
   - halaman keranjang
@@ -421,14 +535,30 @@ Catatan:
 
 - `archive-product.php`
   - archive default `vmp_product`
+  - filter query string native
+  - cocok untuk Beaver Themer
 
 - `single-product.php`
   - single product default
-  - gallery product
-  - tombol add to cart / wishlist
-  - tombol profil toko / pesan seller
-  - ringkasan rating produk
-  - daftar ulasan produk
+  - sekarang bertindak sebagai komposer layout
+  - memanggil block reusable:
+    - `product-gallery.php`
+    - `product-seller-card.php`
+    - `product-description.php`
+    - `product-reviews.php`
+  - tombol add to cart / wishlist tetap inline karena masih satu alur dengan opsi produk
+
+- `product-gallery.php`
+  - block reusable galeri produk
+
+- `product-seller-card.php`
+  - block reusable kartu seller di halaman produk
+
+- `product-description.php`
+  - block reusable deskripsi produk
+
+- `product-reviews.php`
+  - block reusable ringkasan + daftar ulasan produk
 
 - `store-profile.php`
   - profil toko publik
@@ -441,6 +571,7 @@ Catatan:
   - total produk
   - tanggal bergabung
   - daftar produk member
+  - ringkasan rating toko dan ulasan toko
 
 ### `templates/account/`
 
@@ -501,6 +632,11 @@ Catatan:
 2. `frontend.js` hit REST cart
 3. `CartController.php` proses request
 4. `CartRepository.php` simpan item
+5. jika user login, cart tersimpan di `vmp_cart_items` dan tetap terbawa lintas device
+6. jika guest, cart tersimpan di cookie `vmp_guest_cart`
+
+Catatan:
+- merge cart guest ke cart user saat login belum ada
 
 ### Checkout
 
@@ -510,6 +646,18 @@ Catatan:
 4. user bisa pakai kupon bila valid
 5. user pilih service ongkir per seller atau COD jika tersedia di kota tujuan
 6. `CheckoutController.php` buat `vmp_order`
+
+### Order per toko
+
+1. order marketplace bisa berisi lebih dari satu toko
+2. status pengiriman sekarang disimpan per `shipping_group`
+3. seller hanya mengubah status grup tokonya sendiri
+4. buyer melihat ringkasan order per toko, bukan hanya status global
+5. buyer bisa klik `Pesanan Diterima` hanya jika grup toko statusnya `Dikirim`
+6. saat buyer konfirmasi diterima:
+   - status grup toko menjadi `Selesai`
+   - timestamp `received_at` disimpan
+   - `vmp_sold_count` produk di grup toko itu ditambah sekali
 
 ### Pesan
 
@@ -521,15 +669,17 @@ Catatan:
 
 ### Review dan Star Seller
 
-1. Member hanya bisa memberi ulasan dari order miliknya yang statusnya `completed`
+1. Member hanya bisa memberi ulasan dari order miliknya yang grup toko produknya sudah `completed`
 2. Satu produk hanya punya satu ulasan per user per order
 3. Ulasan masuk ke table `wp_vmp_reviews`
 4. Setelah ulasan masuk, meta agregat produk diperbarui:
    - `vmp_review_count`
    - `vmp_rating_average`
-5. Ulasan bisa menyimpan sampai 3 foto review
-6. Setelah ulasan masuk atau status order berubah, `StarSellerService` hitung ulang badge seller
-7. Admin bisa override hasil star seller tanpa mematikan hitung otomatis
+5. Produk yang sudah selesai dan belum direview akan menampilkan tombol `Berikan Penilaian`
+6. Setelah ulasan tersimpan, form review disembunyikan dan diganti ringkasan ulasan tersimpan
+7. Ulasan bisa menyimpan sampai 3 foto review
+8. Setelah ulasan masuk atau status order berubah, `StarSellerService` hitung ulang badge seller
+9. Admin bisa override hasil star seller tanpa mematikan hitung otomatis
 
 ## Catatan maintenance
 
@@ -547,6 +697,11 @@ Catatan:
 - Tracking publik tersedia lewat page tracking
 - Message memakai custom table, bukan CPT
 - Order title baru tidak lagi memakai prefix kata `Order`
+- Status order buyer sekarang dibaca per toko / per `shipping_group`
+- Buyer confirm `Pesanan Diterima` menambah `vmp_sold_count` produk terkait
+- Renderer rating sekarang dipusatkan di `RatingRenderer`
+- Shortcode rating/count baru tersedia untuk kebutuhan Beaver Builder / Themer
+- Single product mulai dipecah ke block reusable agar native template dan Beaver Themer bisa berbagi renderer yang sama
 - Meta profil user sekarang disatukan:
   - semua member membaca key yang sama
   - hanya `vmp_couriers` yang khusus toko

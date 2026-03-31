@@ -5,6 +5,7 @@ namespace VelocityMarketplace\Modules\Checkout;
 use VelocityMarketplace\Modules\Captcha\CaptchaBridge;
 use VelocityMarketplace\Modules\Cart\CartRepository;
 use VelocityMarketplace\Modules\Coupon\CouponService;
+use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Order\OrderData;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
@@ -113,6 +114,11 @@ class CheckoutController
             }
 
             $weight = (float) get_post_meta($product_id, 'weight', true);
+            if ($weight <= 0) {
+                return new WP_REST_Response([
+                    'message' => sprintf(__('Produk "%s" belum memiliki berat. Lengkapi berat produk sebelum checkout.', 'velocity-marketplace'), get_the_title($product_id)),
+                ], 400);
+            }
             $line_subtotal = $price * $qty;
             $subtotal += $line_subtotal;
             $total_weight += ($weight * $qty);
@@ -141,7 +147,8 @@ class CheckoutController
             ], 400);
         }
 
-        $shipping_groups = $this->build_shipping_groups($submitted_shipping_groups, $shipping_destination, $shipping_context_data, $order_items, $payment_method);
+        $order_status = $payment_method === 'cod' ? 'processing' : $default_order_status;
+        $shipping_groups = $this->build_shipping_groups($submitted_shipping_groups, $shipping_destination, $shipping_context_data, $order_items, $payment_method, $order_status);
         if (is_wp_error($shipping_groups)) {
             return new WP_REST_Response([
                 'message' => $shipping_groups->get_error_message(),
@@ -217,7 +224,7 @@ class CheckoutController
         update_post_meta($order_id, 'vmp_total_weight', (float) $total_weight);
         update_post_meta($order_id, 'vmp_payment_method', $payment_method);
         update_post_meta($order_id, 'vmp_bank_accounts', $payment_method === 'bank' ? Settings::bank_accounts() : []);
-        update_post_meta($order_id, 'vmp_status', $payment_method === 'cod' ? 'processing' : $default_order_status);
+        update_post_meta($order_id, 'vmp_status', $order_status);
         update_post_meta($order_id, 'vmp_notes', $notes);
         update_post_meta($order_id, 'vmp_created_at', current_time('mysql'));
         update_post_meta($order_id, 'vmp_coupon_id', $coupon_id);
@@ -249,13 +256,9 @@ class CheckoutController
                 add_query_arg(['tab' => 'orders', 'invoice' => $invoice], $profile_url)
             );
         }
-        if (!empty($customer['email']) && is_email($customer['email'])) {
-            wp_mail(
-                $customer['email'],
-                'Invoice ' . $invoice . ' berhasil dibuat',
-                'Pesanan kamu sudah diterima dengan total ' . number_format((float) $total, 0, ',', '.') . '.'
-            );
-        }
+        $email_templates = new EmailTemplateService();
+        $email_templates->send_admin_new_order($order_id);
+        $email_templates->send_customer_new_order($order_id);
 
         $seller_ids = [];
         foreach ($order_items as $line) {
@@ -311,21 +314,16 @@ class CheckoutController
 
     private function resolve_profile_url($invoice)
     {
-        $pages = get_option(VMP_PAGES_OPTION, []);
-        $pid = isset($pages['myaccount']) ? (int) $pages['myaccount'] : 0;
-        if ($pid > 0) {
-            $url = get_permalink($pid);
-            if ($url) {
-                return add_query_arg(['invoice' => $invoice], $url);
-            }
-        }
-
-        return add_query_arg(['invoice' => $invoice], site_url('/account/'));
+        return add_query_arg([
+            'tab' => 'tracking',
+            'invoice' => $invoice,
+        ], Settings::profile_url());
     }
 
-    private function build_shipping_groups($submitted_groups, $destination, $context_data, $order_items, $payment_method)
+    private function build_shipping_groups($submitted_groups, $destination, $context_data, $order_items, $payment_method, $initial_status = 'pending_payment')
     {
         $payment_method = sanitize_key((string) $payment_method);
+        $initial_status = OrderData::normalize_status($initial_status);
         $context_groups = isset($context_data['data']['groups']) && is_array($context_data['data']['groups'])
             ? $context_data['data']['groups']
             : [];
@@ -422,6 +420,7 @@ class CheckoutController
                 'cod_enabled' => !empty($context_group['cod_enabled']),
                 'cod_city_ids' => $cod_city_ids,
                 'cod_city_names' => isset($context_group['cod_city_names']) && is_array($context_group['cod_city_names']) ? array_values($context_group['cod_city_names']) : [],
+                'status' => $initial_status,
                 'receipt_no' => '',
                 'receipt_courier' => '',
                 'seller_note' => '',

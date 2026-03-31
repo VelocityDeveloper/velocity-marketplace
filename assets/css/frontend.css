@@ -17,6 +17,10 @@
   object-fit: cover;
 }
 
+.vmp-product-card .vmp-thumb {
+  aspect-ratio: 1 / 1;
+}
+
 .vmp-mini-thumb {
   width: 48px;
   height: 48px;
@@ -39,7 +43,7 @@
 .vmp-single-image {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   background: #f8f9fa;
 }
@@ -262,10 +266,6 @@
 }
 
 .vmp-wishlist-button {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -617,6 +617,258 @@ body.offcanvas-backdrop-open {
   color: #fff !important;
 }
 
+.vmp-order-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.vmp-order-group {
+  overflow: hidden;
+  border: 1px solid #dbe4f0;
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, #f9fbff 0, #f9fbff 74px, #ffffff 74px, #ffffff 100%);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.vmp-order-status-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-height: 30px;
+  padding: 0.38rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.vmp-order-group__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.vmp-order-group__message-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 30px;
+  min-width: 78px;
+  border-radius: 999px;
+  padding: 0.38rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  justify-content: center;
+}
+
+.vmp-order-group__message-icon {
+  width: 13px;
+  height: 13px;
+  display: inline-flex;
+}
+
+.vmp-order-group__message-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vmp-order-review-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  min-height: 30px;
+  padding: 0.35rem 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vmp-order-group__lines {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.vmp-order-group__line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid #e6edf5;
+  border-radius: 0.9rem;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-bottom: 1px solid #edf1f5;
+}
+
+.vmp-order-group__line-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.vmp-order-group__line-copy {
+  min-width: 0;
+}
+
+.vmp-order-group__thumb-wrap {
+  flex: 0 0 auto;
+}
+
+.vmp-order-group__thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 0.9rem;
+  object-fit: cover;
+  display: block;
+  background: #f8fafc;
+}
+
+.vmp-order-group__thumb--empty {
+  background:
+    linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.vmp-order-group__summary {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #edf1f5;
+  background: #fcfdff;
+  border-radius: 0.85rem;
+  padding: 1rem;
+}
+
+.vmp-order-group__summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.94rem;
+  color: #475467;
+}
+
+.vmp-order-group__summary-row + .vmp-order-group__summary-row {
+  margin-top: 0.55rem;
+}
+
+.vmp-order-group__summary-row strong {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.vmp-order-group__summary-row--total {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #d8e2ee;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.vmp-order-group__summary-row--total strong {
+  color: #0f172a;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.vmp-add-to-cart-block {
+  width: auto;
+}
+
+.vmp-add-to-cart-block[data-vmp-add-to-cart-style="inline"] {
+  width: 100%;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vmp-inline-product-options {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vmp-inline-product-options__group .form-label {
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.vmp-inline-product-options__group .form-select {
+  min-height: auto;
+}
+
+.vmp-inline-product-options__group .form-select:focus {
+  box-shadow: none;
+}
+
+.vmp-add-to-cart-block[data-vmp-add-to-cart-style="inline"] .vmp-action-add-to-cart {
+  width: 100%;
+}
+
+.vmp-product-card__actions {
+  align-items: stretch;
+}
+
+.vmp-product-card__actions .vmp-add-to-cart-block {
+  flex: 1 1 auto;
+}
+
+.vmp-product-card__actions .vmp-action-add-to-cart {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vmp-single-product-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.vmp-single-product-actions__primary {
+  min-width: 0;
+}
+
+.vmp-order-group .card-body > .d-flex:first-child {
+  margin: -0.35rem -0.35rem 1rem;
+  padding: 0.35rem 0.35rem 0.95rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.vmp-order-groups + .card.bg-light-subtle,
+.vmp-wrap .card.bg-light-subtle {
+  border: 1px solid #e5ebf3 !important;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+}
+
+.vmp-wrap .card.bg-light-subtle .vmp-order-group__summary-row {
+  color: #475467;
+}
+
+.vmp-wrap .card.bg-light-subtle .vmp-order-group__summary-row strong {
+  color: #1f2937;
+}
+
+.vmp-wrap .card.bg-light-subtle .vmp-order-group__summary-row.text-success strong {
+  color: #0f9f6e;
+}
+
+.vmp-wrap .card.bg-light-subtle .vmp-order-group__summary-row--total {
+  margin-top: 0.95rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid #d8e2ee;
+}
+
+.vmp-wrap .card.bg-light-subtle .vmp-order-group__summary-row--total strong {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
 @media (max-width: 991.98px) {
   .vmp-archive-filter-card {
     position: static;
@@ -624,6 +876,10 @@ body.offcanvas-backdrop-open {
 }
 
 @media (max-width: 767.98px) {
+  .vmp-single-product-actions {
+    grid-template-columns: 1fr;
+  }
+
   .vmp-gallery-thumbs {
     grid-auto-columns: minmax(76px, 92px);
     gap: 0.5rem;
@@ -660,5 +916,19 @@ body.offcanvas-backdrop-open {
   .vmp-cart-drawer__footer {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .vmp-order-group__line,
+  .vmp-order-group__summary-row {
+    gap: 0.75rem;
+  }
+
+  .vmp-order-group__line {
+    padding: 0.85rem;
+  }
+
+  .vmp-order-group__thumb {
+    width: 56px;
+    height: 56px;
   }
 }

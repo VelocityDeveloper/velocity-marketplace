@@ -56,6 +56,33 @@ $label_options = [
                         <option value="regular"><?php echo esc_html__('Toko Biasa', 'velocity-marketplace'); ?></option>
                     </select>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1"><?php echo esc_html__('Provinsi Toko', 'velocity-marketplace'); ?></label>
+                    <select class="form-select form-select-sm" x-model="storeProvinceId" x-effect="$el.value = storeProvinceId || ''" @change="onStoreProvinceChange()" :disabled="isLoadingProvinces">
+                        <option value=""><?php echo esc_html__('Semua Provinsi', 'velocity-marketplace'); ?></option>
+                        <template x-for="prov in provinces" :key="'catalog-prov-' + prov.province_id">
+                            <option :value="prov.province_id" :selected="(storeProvinceId || '') === String(prov.province_id || '')" x-text="prov.province"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1"><?php echo esc_html__('Kota/Kabupaten Toko', 'velocity-marketplace'); ?></label>
+                    <select class="form-select form-select-sm" x-model="storeCityId" x-effect="$el.value = storeCityId || ''" @change="onStoreCityChange()" :disabled="!storeProvinceId || isLoadingCities">
+                        <option value=""><?php echo esc_html__('Semua Kota/Kabupaten', 'velocity-marketplace'); ?></option>
+                        <template x-for="city in cities" :key="'catalog-city-' + city.city_id">
+                            <option :value="city.city_id" :selected="(storeCityId || '') === String(city.city_id || '')" x-text="(city.type ? city.type + ' ' : '') + city.city_name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1"><?php echo esc_html__('Kecamatan Toko', 'velocity-marketplace'); ?></label>
+                    <select class="form-select form-select-sm" x-model="storeSubdistrictId" x-effect="$el.value = storeSubdistrictId || ''" @change="onStoreSubdistrictChange()" :disabled="!storeCityId || isLoadingSubdistricts">
+                        <option value=""><?php echo esc_html__('Semua Kecamatan', 'velocity-marketplace'); ?></option>
+                        <template x-for="subdistrict in subdistricts" :key="'catalog-subdistrict-' + subdistrict.subdistrict_id">
+                            <option :value="subdistrict.subdistrict_id" :selected="(storeSubdistrictId || '') === String(subdistrict.subdistrict_id || '')" x-text="subdistrict.subdistrict_name"></option>
+                        </template>
+                    </select>
+                </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-1"><?php echo esc_html__('Harga Minimum', 'velocity-marketplace'); ?></label>
                     <input type="number" min="0" step="1000" class="form-control form-control-sm" x-model="minPrice" @keydown.enter.prevent="fetchProducts(1)">
@@ -79,6 +106,9 @@ $label_options = [
                     <button class="btn btn-sm btn-primary" type="button" @click="fetchProducts(1)"><?php echo esc_html__('Terapkan Filter', 'velocity-marketplace'); ?></button>
                     <button class="btn btn-sm btn-outline-secondary" type="button" @click="resetFilters()"><?php echo esc_html__('Atur Ulang', 'velocity-marketplace'); ?></button>
                 </div>
+                <div class="col-12" x-show="locationError">
+                    <div class="small text-muted" x-text="locationError"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -95,8 +125,15 @@ $label_options = [
                         <h3 class="card-title h6 mb-1" x-text="item.title"></h3>
                         <div class="small text-muted mb-2" x-show="item.label" x-text="item.label"></div>
                         <div class="fw-semibold text-danger mb-1" x-text="formatPrice(item.price)"></div>
+                        <div class="small text-muted mb-1" x-show="item.seller_city" x-text="item.seller_city"></div>
+                        <div class="small text-muted mb-1" x-show="Number(item.sold_count || 0) > 0" x-text="(item.sold_count || 0) + ' <?php echo esc_js(__('terjual', 'velocity-marketplace')); ?>'"></div>
                         <div class="small text-muted mb-1" x-text="stockText(item.stock)"></div>
-                        <div class="small text-muted mb-3" x-text="ratingText(item)"></div>
+                        <template x-if="item.rating_html">
+                            <div class="mb-3" x-html="item.rating_html"></div>
+                        </template>
+                        <template x-if="!item.rating_html">
+                            <div class="small text-muted mb-3"><?php echo esc_html__('Belum ada ulasan', 'velocity-marketplace'); ?></div>
+                        </template>
                         <div class="mt-auto d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-dark flex-grow-1" @click="addToCart(item)"><?php echo esc_html__('Tambah Keranjang', 'velocity-marketplace'); ?></button>
                             <button

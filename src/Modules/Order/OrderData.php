@@ -34,6 +34,23 @@ class OrderData
         return isset($statuses[$status]) ? $statuses[$status] : $status;
     }
 
+    public static function status_badge_class($status)
+    {
+        $status = self::normalize_status($status);
+
+        $map = [
+            'pending_payment' => 'secondary',
+            'pending_verification' => 'warning text-dark',
+            'processing' => 'info text-dark',
+            'shipped' => 'primary',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+            'refunded' => 'dark',
+        ];
+
+        return isset($map[$status]) ? $map[$status] : 'secondary';
+    }
+
     public static function get_items($order_id)
     {
         $items = get_post_meta((int) $order_id, 'vmp_items', true);
@@ -76,10 +93,106 @@ class OrderData
     {
         $groups = get_post_meta((int) $order_id, 'vmp_shipping_groups', true);
         if (is_array($groups) && !empty($groups)) {
-            return array_values($groups);
+            $normalized_groups = self::normalize_shipping_groups((int) $order_id, $groups);
+            if ($normalized_groups !== $groups) {
+                update_post_meta((int) $order_id, 'vmp_shipping_groups', array_values($normalized_groups));
+            }
+            return array_values($normalized_groups);
         }
 
         return [];
+    }
+
+    public static function shipping_group_status(array $group, $fallback = 'pending_payment')
+    {
+        $status = isset($group['status']) ? (string) $group['status'] : '';
+        if ($status === '') {
+            $status = (string) $fallback;
+        }
+
+        return self::normalize_status($status);
+    }
+
+    public static function summarize_shipping_statuses(array $groups, $fallback = 'pending_payment')
+    {
+        if (empty($groups)) {
+            return self::normalize_status($fallback);
+        }
+
+        $statuses = [];
+        foreach ($groups as $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+            $statuses[] = self::shipping_group_status($group, $fallback);
+        }
+
+        $statuses = array_values(array_unique(array_filter($statuses)));
+        if (empty($statuses)) {
+            return self::normalize_status($fallback);
+        }
+
+        if (count($statuses) === 1) {
+            return self::normalize_status($statuses[0]);
+        }
+
+        return 'processing';
+    }
+
+    public static function infer_missing_group_status(array $group, $global_status = 'pending_payment', $payment_method = '', $has_transfer_proof = false)
+    {
+        $global_status = self::normalize_status($global_status);
+        $payment_method = sanitize_key((string) $payment_method);
+        $has_transfer_proof = (bool) $has_transfer_proof;
+
+        if (in_array($global_status, ['completed', 'cancelled', 'refunded'], true)) {
+            return $global_status;
+        }
+
+        if (!empty($group['receipt_no'])) {
+            return 'shipped';
+        }
+
+        if ($has_transfer_proof || $global_status === 'pending_verification') {
+            return 'pending_verification';
+        }
+
+        if ($payment_method === 'cod') {
+            return 'processing';
+        }
+
+        if ($global_status === 'pending_payment') {
+            return 'pending_payment';
+        }
+
+        return 'processing';
+    }
+
+    private static function normalize_shipping_groups($order_id, array $groups)
+    {
+        $order_id = (int) $order_id;
+        $global_status = (string) get_post_meta($order_id, 'vmp_status', true);
+        $payment_method = (string) get_post_meta($order_id, 'vmp_payment_method', true);
+        $has_transfer_proof = (int) get_post_meta($order_id, 'vmp_transfer_proof_id', true) > 0;
+
+        foreach ($groups as $index => $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+
+            $status = isset($group['status']) ? (string) $group['status'] : '';
+            if ($status === '') {
+                $groups[$index]['status'] = self::infer_missing_group_status($group, $global_status, $payment_method, $has_transfer_proof);
+                continue;
+            }
+
+            $normalized_status = self::normalize_status($status);
+            if ($normalized_status !== $status) {
+                $groups[$index]['status'] = $normalized_status;
+            }
+        }
+
+        return $groups;
     }
 
     public static function seller_shipping_group($order_id, $seller_id)

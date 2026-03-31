@@ -6,11 +6,14 @@ use VelocityMarketplace\Modules\Product\ProductFields;
 
 class ProductMetaBox
 {
+    private $drafting_for_validation = false;
+
     public function register()
     {
         add_action('add_meta_boxes', [$this, 'add_meta_box']);
         add_action('save_post_vmp_product', [$this, 'save_meta']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_action('admin_notices', [$this, 'render_validation_notice']);
     }
 
     public function add_meta_box()
@@ -94,7 +97,51 @@ class ProductMetaBox
             return;
         }
 
+        $validation = ProductFields::validate_submission('admin');
+        if (is_wp_error($validation)) {
+            $this->queue_validation_notice($validation->get_error_message());
+
+            if (!$this->drafting_for_validation && in_array(get_post_status($post_id), ['publish', 'pending'], true)) {
+                $this->drafting_for_validation = true;
+                remove_action('save_post_vmp_product', [$this, 'save_meta']);
+                wp_update_post([
+                    'ID' => (int) $post_id,
+                    'post_status' => 'draft',
+                ]);
+                add_action('save_post_vmp_product', [$this, 'save_meta']);
+                $this->drafting_for_validation = false;
+            }
+
+            return;
+        }
+
         ProductFields::save((int) $post_id, 'admin');
+    }
+
+    public function render_validation_notice()
+    {
+        if (!is_admin()) {
+            return;
+        }
+
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (!$screen || $screen->post_type !== 'vmp_product') {
+            return;
+        }
+
+        $message = isset($_GET['vmp_product_error']) ? sanitize_text_field((string) wp_unslash($_GET['vmp_product_error'])) : '';
+        if ($message === '') {
+            return;
+        }
+
+        echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($message) . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+
+    private function queue_validation_notice($message)
+    {
+        add_filter('redirect_post_location', static function ($location) use ($message) {
+            return add_query_arg('vmp_product_error', rawurlencode((string) $message), $location);
+        });
     }
 }
 

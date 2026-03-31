@@ -3,6 +3,7 @@
     $store_phone = (string) get_user_meta($current_user_id, 'vmp_store_phone', true);
     $store_whatsapp = (string) get_user_meta($current_user_id, 'vmp_store_whatsapp', true);
     $store_address = (string) get_user_meta($current_user_id, 'vmp_store_address', true);
+    $store_bank_details = (string) get_user_meta($current_user_id, 'vmp_store_bank_details', true);
     $store_description = (string) get_user_meta($current_user_id, 'vmp_store_description', true);
     $store_subdistrict = (string) get_user_meta($current_user_id, 'vmp_store_subdistrict', true);
     $store_city = (string) get_user_meta($current_user_id, 'vmp_store_city', true);
@@ -75,6 +76,11 @@
             <div class="col-md-6"><label class="form-label"><?php echo esc_html__('Kontak Telepon', 'velocity-marketplace'); ?></label><input type="text" name="store_phone" class="form-control" value="<?php echo esc_attr($store_phone); ?>"></div>
             <div class="col-md-6"><label class="form-label"><?php echo esc_html__('WhatsApp', 'velocity-marketplace'); ?></label><input type="text" name="store_whatsapp" class="form-control" value="<?php echo esc_attr($store_whatsapp); ?>"></div>
             <div class="col-12"><label class="form-label"><?php echo esc_html__('Alamat Toko', 'velocity-marketplace'); ?></label><textarea name="store_address" class="form-control" rows="3" required><?php echo esc_textarea($store_address); ?></textarea></div>
+            <div class="col-12">
+                <label class="form-label"><?php echo esc_html__('Rekening Pencairan', 'velocity-marketplace'); ?></label>
+                <textarea name="store_bank_details" class="form-control" rows="4" placeholder="<?php echo esc_attr__('Contoh: BCA a.n. Nama Pemilik Rekening 1234567890', 'velocity-marketplace'); ?>"><?php echo esc_textarea($store_bank_details); ?></textarea>
+                <div class="form-text"><?php echo esc_html__('Isi rekening tujuan pencairan untuk admin. Anda bisa menulis nama bank, atas nama, dan nomor rekening dalam satu kolom.', 'velocity-marketplace'); ?></div>
+            </div>
             <div class="col-md-4">
                 <label class="form-label"><?php echo esc_html__('Provinsi', 'velocity-marketplace'); ?></label>
                 <select name="store_province_id" class="form-select" x-ref="provinceSelect" x-model="form.province_id" @change="onProvinceChange()" :disabled="isLoadingProvinces">

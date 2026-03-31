@@ -35,6 +35,9 @@ class Plugin
             $star_seller_admin = new \VelocityMarketplace\Modules\Review\StarSellerAdmin();
             $star_seller_admin->register();
 
+            $store_bank_admin = new \VelocityMarketplace\Modules\Profile\StoreBankAdmin();
+            $store_bank_admin->register();
+
             $coupon_admin = new \VelocityMarketplace\Modules\Coupon\CouponAdmin();
             $coupon_admin->register();
 

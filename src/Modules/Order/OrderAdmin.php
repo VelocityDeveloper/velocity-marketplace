@@ -2,6 +2,7 @@
 
 namespace VelocityMarketplace\Modules\Order;
 
+use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Modules\Review\StarSellerService;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
 
@@ -364,8 +365,10 @@ class OrderAdmin
             return;
         }
 
+        $previous_status = (string) get_post_meta($post_id, 'vmp_status', true);
         $status = isset($_POST['vmp_order_status']) ? (string) wp_unslash($_POST['vmp_order_status']) : '';
-        update_post_meta($post_id, 'vmp_status', OrderData::normalize_status($status));
+        $normalized_status = OrderData::normalize_status($status);
+        update_post_meta($post_id, 'vmp_status', $normalized_status);
 
         $shipping_groups = OrderData::shipping_groups($post_id);
         if (!empty($shipping_groups)) {
@@ -374,6 +377,7 @@ class OrderAdmin
             $posted_notes = isset($_POST['vmp_group_seller_note']) && is_array($_POST['vmp_group_seller_note']) ? wp_unslash($_POST['vmp_group_seller_note']) : [];
 
             foreach ($shipping_groups as $index => &$group) {
+                $group['status'] = $normalized_status;
                 $receipt_no = sanitize_text_field((string) ($posted_receipts[$index] ?? ''));
                 $receipt_courier = sanitize_text_field((string) ($posted_couriers[$index] ?? ''));
                 $seller_note = sanitize_textarea_field((string) ($posted_notes[$index] ?? ''));
@@ -441,6 +445,11 @@ class OrderAdmin
         }
         foreach ($seller_ids as $seller_id) {
             $service->recalculate($seller_id);
+        }
+
+        $buyer_id = (int) get_post_meta($post_id, 'vmp_user_id', true);
+        if ($buyer_id > 0 && $previous_status !== $normalized_status) {
+            (new EmailTemplateService())->send_customer_status_update($post_id, $normalized_status);
         }
     }
 

@@ -72,13 +72,39 @@ class ReviewRepository
         }
 
         $status = (string) get_post_meta($order_id, 'vmp_status', true);
-        if ($status !== 'completed') {
-            return false;
-        }
+        $product_seller_id = 0;
 
         foreach (OrderData::get_items($order_id) as $item) {
             if ((int) ($item['product_id'] ?? 0) === $product_id) {
+                $product_seller_id = (int) ($item['seller_id'] ?? 0);
+                break;
+            }
+        }
+
+        if ($product_seller_id <= 0 && $status === 'completed') {
+            foreach (OrderData::get_items($order_id) as $item) {
+                if ((int) ($item['product_id'] ?? 0) === $product_id) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        foreach (OrderData::shipping_groups($order_id) as $group) {
+            $group_status = OrderData::shipping_group_status($group, $status);
+            if ($group_status !== 'completed') {
+                continue;
+            }
+
+            if ((int) ($group['seller_id'] ?? 0) === $product_seller_id) {
                 return true;
+            }
+
+            foreach ((array) ($group['items'] ?? []) as $group_item) {
+                if ((int) ($group_item['product_id'] ?? 0) === $product_id) {
+                    return true;
+                }
             }
         }
 

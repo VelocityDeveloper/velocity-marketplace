@@ -23,80 +23,15 @@ $current_args = array_filter([
     'product_cat' => (int) ($filters['cat'] ?? 0),
     'product_label' => (string) ($filters['label'] ?? ''),
     'store_type' => (string) ($filters['store_type'] ?? ''),
+    'store_province_id' => (string) ($filters['store_province_id'] ?? ''),
+    'store_city_id' => (string) ($filters['store_city_id'] ?? ''),
+    'store_subdistrict_id' => (string) ($filters['store_subdistrict_id'] ?? ''),
     'min_price' => $filters['min_price'] !== '' ? (string) $filters['min_price'] : '',
     'max_price' => $filters['max_price'] !== '' ? (string) $filters['max_price'] : '',
     'sort' => (string) ($filters['sort'] ?? ''),
 ], static function ($value) {
     return $value !== '' && $value !== 0;
 });
-
-$render_filter_form = static function ($form_class = '') use ($archive_url, $filters, $categories, $label_options) {
-    ?>
-    <form method="get" action="<?php echo esc_url($archive_url); ?>" class="<?php echo esc_attr(trim('vmp-archive-filter-form ' . $form_class)); ?>">
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Nama Produk', 'velocity-marketplace'); ?></label>
-            <input type="search" name="search" class="form-control form-control-sm" placeholder="<?php echo esc_attr__('Search product name', 'velocity-marketplace'); ?>" value="<?php echo esc_attr((string) ($filters['search'] ?? '')); ?>">
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Kategori', 'velocity-marketplace'); ?></label>
-            <select name="product_cat" class="form-select form-select-sm">
-                <option value=""><?php echo esc_html__('Semua Kategori', 'velocity-marketplace'); ?></option>
-                <?php foreach ((array) $categories as $category) : ?>
-                    <?php if (!is_object($category) || empty($category->term_id)) { continue; } ?>
-                    <option value="<?php echo esc_attr((string) $category->term_id); ?>" <?php selected((int) ($filters['cat'] ?? 0), (int) $category->term_id); ?>><?php echo esc_html((string) $category->name); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Label', 'velocity-marketplace'); ?></label>
-            <select name="product_label" class="form-select form-select-sm">
-                <option value=""><?php echo esc_html__('Semua Label', 'velocity-marketplace'); ?></option>
-                <?php foreach ($label_options as $label_value => $label_name) : ?>
-                    <option value="<?php echo esc_attr($label_value); ?>" <?php selected((string) ($filters['label'] ?? ''), (string) $label_value); ?>><?php echo esc_html($label_name); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Jenis Toko', 'velocity-marketplace'); ?></label>
-            <select name="store_type" class="form-select form-select-sm">
-                <option value=""><?php echo esc_html__('Semua Toko', 'velocity-marketplace'); ?></option>
-                <option value="star_seller" <?php selected((string) ($filters['store_type'] ?? ''), 'star_seller'); ?>><?php echo esc_html__('Star Seller', 'velocity-marketplace'); ?></option>
-                <option value="regular" <?php selected((string) ($filters['store_type'] ?? ''), 'regular'); ?>><?php echo esc_html__('Toko Biasa', 'velocity-marketplace'); ?></option>
-            </select>
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Harga Minimum', 'velocity-marketplace'); ?></label>
-            <input type="number" name="min_price" min="0" step="1000" class="form-control form-control-sm" value="<?php echo esc_attr($filters['min_price'] !== '' ? (string) $filters['min_price'] : ''); ?>">
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Harga Maksimum', 'velocity-marketplace'); ?></label>
-            <input type="number" name="max_price" min="0" step="1000" class="form-control form-control-sm" value="<?php echo esc_attr($filters['max_price'] !== '' ? (string) $filters['max_price'] : ''); ?>">
-        </div>
-
-        <div class="vmp-archive-filter-group">
-            <label class="form-label small mb-1"><?php echo esc_html__('Urutkan', 'velocity-marketplace'); ?></label>
-            <select name="sort" class="form-select form-select-sm">
-                <option value="latest" <?php selected((string) ($filters['sort'] ?? 'latest'), 'latest'); ?>><?php echo esc_html__('Terbaru', 'velocity-marketplace'); ?></option>
-                <option value="price_asc" <?php selected((string) ($filters['sort'] ?? ''), 'price_asc'); ?>><?php echo esc_html__('Harga Terendah', 'velocity-marketplace'); ?></option>
-                <option value="price_desc" <?php selected((string) ($filters['sort'] ?? ''), 'price_desc'); ?>><?php echo esc_html__('Harga Tertinggi', 'velocity-marketplace'); ?></option>
-                <option value="name_asc" <?php selected((string) ($filters['sort'] ?? ''), 'name_asc'); ?>><?php echo esc_html__('Name A-Z', 'velocity-marketplace'); ?></option>
-                <option value="name_desc" <?php selected((string) ($filters['sort'] ?? ''), 'name_desc'); ?>><?php echo esc_html__('Name Z-A', 'velocity-marketplace'); ?></option>
-                <option value="popular" <?php selected((string) ($filters['sort'] ?? ''), 'popular'); ?>><?php echo esc_html__('Most Popular', 'velocity-marketplace'); ?></option>
-            </select>
-        </div>
-
-        <div class="d-grid gap-2 pt-2">
-            <button type="submit" class="btn btn-sm btn-dark"><?php echo esc_html__('Terapkan Filter', 'velocity-marketplace'); ?></button>
-            <a href="<?php echo esc_url($archive_url); ?>" class="btn btn-sm btn-outline-secondary"><?php echo esc_html__('Atur Ulang', 'velocity-marketplace'); ?></a>
-        </div>
-    </form>
-    <?php
-};
 
 get_header();
 ?>
@@ -126,7 +61,12 @@ get_header();
                         <h2 class="h6 mb-0"><?php echo esc_html__('Filter', 'velocity-marketplace'); ?></h2>
                         <span class="small text-muted"><?php echo esc_html(sprintf(_n('%d product', '%d products', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?></span>
                     </div>
-                    <?php $render_filter_form(); ?>
+                    <?php echo \VelocityMarketplace\Frontend\Template::render('product-filter-form', [
+                        'filters' => $filters,
+                        'categories' => $categories,
+                        'label_options' => $label_options,
+                        'action_url' => $archive_url,
+                    ]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                 </div>
             </div>
         </aside>
@@ -150,6 +90,12 @@ get_header();
                                         <div class="small text-muted mb-2"><?php echo esc_html($item['label']); ?></div>
                                     <?php endif; ?>
                                     <?php echo do_shortcode('[vmp_price id="' . (int) $item['id'] . '"]'); ?>
+                                    <?php if (!empty($item['seller_city'])) : ?>
+                                        <div class="small text-muted mb-1"><?php echo esc_html((string) $item['seller_city']); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($item['sold_count'])) : ?>
+                                        <div class="small text-muted mb-1"><?php echo esc_html(sprintf(__('%d terjual', 'velocity-marketplace'), (int) $item['sold_count'])); ?></div>
+                                    <?php endif; ?>
                                     <div class="small text-muted mb-3">
                                         <?php
                                         if ($item['stock'] === null || $item['stock'] === '') {
@@ -159,6 +105,11 @@ get_header();
                                         }
                                         ?>
                                     </div>
+                                    <?php if (!empty($item['rating_html'])) : ?>
+                                        <div class="mb-3"><?php echo $item['rating_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
+                                    <?php else : ?>
+                                        <div class="small text-muted mb-3"><?php echo esc_html__('Belum ada ulasan', 'velocity-marketplace'); ?></div>
+                                    <?php endif; ?>
                                     <div class="mt-auto d-flex gap-2">
                                         <?php echo do_shortcode('[vmp_add_to_cart id="' . (int) $item['id'] . '" class="btn btn-sm btn-dark flex-grow-1"]'); ?>
                                         <?php echo do_shortcode('[vmp_add_to_wishlist id="' . (int) $item['id'] . '" class="btn btn-sm btn-outline-secondary vmp-wishlist-button"]'); ?>
@@ -195,7 +146,13 @@ get_header();
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="<?php echo esc_attr__('Close', 'velocity-marketplace'); ?>"></button>
     </div>
     <div class="offcanvas-body">
-        <?php $render_filter_form('vmp-archive-filter-form--mobile'); ?>
+        <?php echo \VelocityMarketplace\Frontend\Template::render('product-filter-form', [
+            'filters' => $filters,
+            'categories' => $categories,
+            'label_options' => $label_options,
+            'action_url' => $archive_url,
+            'form_class' => 'vmp-archive-filter-form--mobile',
+        ]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
     </div>
 </div>
 <?php get_footer(); ?>
