@@ -311,7 +311,13 @@ class SettingsPage
                                     <th scope="row"><?php echo esc_html__('Metode Pembayaran Aktif', 'velocity-marketplace'); ?></th>
                                     <td>
                                         <label><input type="checkbox" value="bank" x-model="form.payment_methods"> <?php echo esc_html__('Bank Transfer', 'velocity-marketplace'); ?></label><br>
-                                        <label><input type="checkbox" value="duitku" x-model="form.payment_methods"> Duitku</label><br>
+                                        <template x-if="gateways.duitku">
+                                            <label><input type="checkbox" value="duitku" x-model="form.payment_methods"> Duitku</label>
+                                        </template>
+                                        <template x-if="!gateways.duitku">
+                                            <div class="description"><?php echo esc_html__('Duitku tidak tersedia karena plugin gateway belum aktif atau belum dikonfigurasi.', 'velocity-marketplace'); ?></div>
+                                        </template>
+                                        <br>
                                         <label><input type="checkbox" value="paypal" x-model="form.payment_methods"> PayPal</label><br>
                                         <label><input type="checkbox" value="cod" x-model="form.payment_methods"> COD</label>
                                     </td>

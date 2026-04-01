@@ -6,7 +6,8 @@ $categories = isset($categories) && is_array($categories) ? $categories : get_te
     'taxonomy' => 'vmp_product_cat',
     'hide_empty' => false,
 ]);
-$label_options = isset($label_options) && is_array($label_options) ? $label_options : (new ProductQuery())->label_options();
+$product_query = new ProductQuery();
+$sort_options = isset($sort_options) && is_array($sort_options) ? $sort_options : $product_query->sort_options();
 $action_url = isset($action_url) && is_string($action_url) && $action_url !== '' ? $action_url : get_post_type_archive_link('vmp_product');
 $form_class = isset($form_class) ? (string) $form_class : '';
 ?>
@@ -23,7 +24,7 @@ $form_class = isset($form_class) ? (string) $form_class : '';
 >
     <div class="vmp-archive-filter-group">
         <label class="form-label small mb-1"><?php echo esc_html__('Nama Produk', 'velocity-marketplace'); ?></label>
-        <input type="search" name="search" class="form-control form-control-sm" placeholder="<?php echo esc_attr__('Search product name', 'velocity-marketplace'); ?>" value="<?php echo esc_attr((string) ($filters['search'] ?? '')); ?>">
+        <input type="search" name="search" class="form-control form-control-sm" placeholder="<?php echo esc_attr__('Cari nama produk', 'velocity-marketplace'); ?>" value="<?php echo esc_attr((string) ($filters['search'] ?? '')); ?>">
     </div>
 
     <div class="vmp-archive-filter-group">
@@ -33,16 +34,6 @@ $form_class = isset($form_class) ? (string) $form_class : '';
             <?php foreach ((array) $categories as $category) : ?>
                 <?php if (!is_object($category) || empty($category->term_id)) { continue; } ?>
                 <option value="<?php echo esc_attr((string) $category->term_id); ?>" <?php selected((int) ($filters['cat'] ?? 0), (int) $category->term_id); ?>><?php echo esc_html((string) $category->name); ?></option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-
-    <div class="vmp-archive-filter-group">
-        <label class="form-label small mb-1"><?php echo esc_html__('Label', 'velocity-marketplace'); ?></label>
-        <select name="product_label" class="form-select form-select-sm">
-            <option value=""><?php echo esc_html__('Semua Label', 'velocity-marketplace'); ?></option>
-            <?php foreach ($label_options as $label_value => $label_name) : ?>
-                <option value="<?php echo esc_attr($label_value); ?>" <?php selected((string) ($filters['label'] ?? ''), (string) $label_value); ?>><?php echo esc_html($label_name); ?></option>
             <?php endforeach; ?>
         </select>
     </div>
@@ -99,12 +90,9 @@ $form_class = isset($form_class) ? (string) $form_class : '';
     <div class="vmp-archive-filter-group">
         <label class="form-label small mb-1"><?php echo esc_html__('Urutkan', 'velocity-marketplace'); ?></label>
         <select name="sort" class="form-select form-select-sm">
-            <option value="latest" <?php selected((string) ($filters['sort'] ?? 'latest'), 'latest'); ?>><?php echo esc_html__('Terbaru', 'velocity-marketplace'); ?></option>
-            <option value="price_asc" <?php selected((string) ($filters['sort'] ?? ''), 'price_asc'); ?>><?php echo esc_html__('Harga Terendah', 'velocity-marketplace'); ?></option>
-            <option value="price_desc" <?php selected((string) ($filters['sort'] ?? ''), 'price_desc'); ?>><?php echo esc_html__('Harga Tertinggi', 'velocity-marketplace'); ?></option>
-            <option value="name_asc" <?php selected((string) ($filters['sort'] ?? ''), 'name_asc'); ?>><?php echo esc_html__('Name A-Z', 'velocity-marketplace'); ?></option>
-            <option value="name_desc" <?php selected((string) ($filters['sort'] ?? ''), 'name_desc'); ?>><?php echo esc_html__('Name Z-A', 'velocity-marketplace'); ?></option>
-            <option value="popular" <?php selected((string) ($filters['sort'] ?? ''), 'popular'); ?>><?php echo esc_html__('Most Popular', 'velocity-marketplace'); ?></option>
+            <?php foreach ($sort_options as $sort_key => $sort_label) : ?>
+                <option value="<?php echo esc_attr((string) $sort_key); ?>" <?php selected((string) ($filters['sort'] ?? 'latest'), (string) $sort_key); ?>><?php echo esc_html((string) $sort_label); ?></option>
+            <?php endforeach; ?>
         </select>
     </div>
 

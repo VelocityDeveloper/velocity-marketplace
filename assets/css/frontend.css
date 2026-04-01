@@ -833,6 +833,77 @@ body.offcanvas-backdrop-open {
   min-width: 0;
 }
 
+.vmp-share-links .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vmp-order-timeline {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vmp-order-timeline__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.vmp-order-timeline__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  margin-top: 0.2rem;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+}
+
+.vmp-order-timeline__line {
+  position: absolute;
+  left: 6px;
+  top: 1.15rem;
+  bottom: -0.95rem;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.vmp-order-timeline__label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.vmp-order-timeline__description {
+  margin-top: 0.18rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.vmp-order-timeline__item.is-complete .vmp-order-timeline__dot,
+.vmp-order-timeline__item.is-current .vmp-order-timeline__dot {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.vmp-order-timeline__item.is-complete .vmp-order-timeline__line {
+  background: #1d4ed8;
+}
+
+.vmp-order-timeline__item.is-current .vmp-order-timeline__label {
+  color: #1d4ed8;
+}
+
+.vmp-order-timeline__item.is-pending .vmp-order-timeline__label {
+  color: #94a3b8;
+}
+
+.vmp-order-timeline__item.is-pending .vmp-order-timeline__description {
+  color: #94a3b8;
+}
+
 .vmp-order-group .card-body > .d-flex:first-child {
   margin: -0.35rem -0.35rem 1rem;
   padding: 0.35rem 0.35rem 0.95rem;

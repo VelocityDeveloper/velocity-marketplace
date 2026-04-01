@@ -22,6 +22,9 @@ class Plugin
         $product_fields = new \VelocityMarketplace\Modules\Product\ProductFields();
         $product_fields->register();
 
+        $duitku_callback_listener = new \VelocityMarketplace\Modules\Payment\DuitkuCallbackListener();
+        $duitku_callback_listener->register();
+
         if (is_admin()) {
             $meta_box = new \VelocityMarketplace\Modules\Product\ProductMetaBox();
             $meta_box->register();

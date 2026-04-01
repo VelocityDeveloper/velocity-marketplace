@@ -64,6 +64,8 @@ if ($invoice !== '') {
         $coupon_discount = (float) get_post_meta($order_id, 'vmp_coupon_discount', true);
         $coupon_product_discount = (float) get_post_meta($order_id, 'vmp_coupon_product_discount', true);
         $coupon_shipping_discount = (float) get_post_meta($order_id, 'vmp_coupon_shipping_discount', true);
+        $gateway_payment_url = (string) get_post_meta($order_id, 'vmp_gateway_payment_url', true);
+        $gateway_status = (string) get_post_meta($order_id, 'vmp_gateway_status', true);
         $bank_accounts = get_post_meta($order_id, 'vmp_bank_accounts', true);
         if (!is_array($bank_accounts)) {
             $bank_accounts = [];
@@ -83,7 +85,7 @@ if ($invoice !== '') {
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <div><strong><?php echo esc_html__('Invoice:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($invoice); ?></div>
+                        <div class="d-flex flex-wrap align-items-center gap-2"><strong><?php echo esc_html__('Invoice:', 'velocity-marketplace'); ?></strong> <span><?php echo esc_html($invoice); ?></span><button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr($invoice); ?>" data-vmp-copy-success="<?php echo esc_attr__('Invoice Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Invoice', 'velocity-marketplace'); ?></button></div>
                         <div><strong><?php echo esc_html__('Metode Pembayaran:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($payment !== '' ? strtoupper($payment) : '-'); ?></div>
                     </div>
                     <div class="col-md-6">
@@ -94,6 +96,11 @@ if ($invoice !== '') {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php if ($payment === 'duitku' && $gateway_payment_url !== '' && $gateway_status !== 'paid') : ?>
+                    <div class="mt-3">
+                        <a href="<?php echo esc_url($gateway_payment_url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-primary"><?php echo esc_html__('Lanjutkan Pembayaran Duitku', 'velocity-marketplace'); ?></a>
+                    </div>
+                <?php endif; ?>
                 <?php if ($payment === 'bank' && !empty($bank_accounts)) : ?>
                     <div class="mt-4 border-top pt-3">
                         <h3 class="h6 mb-2"><?php echo esc_html__('Rekening Tujuan Transfer', 'velocity-marketplace'); ?></h3>
@@ -104,7 +111,12 @@ if ($invoice !== '') {
                                     <div class="border rounded p-3 h-100">
                                         <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['bank_name'] ?? '-')); ?></div>
                                         <div class="small text-muted mt-2"><?php echo esc_html__('Nomor Rekening', 'velocity-marketplace'); ?></div>
-                                        <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['account_number'] ?? '-')); ?></div>
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['account_number'] ?? '-')); ?></div>
+                                            <?php if (!empty($bank_account['account_number'])) : ?>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr((string) $bank_account['account_number']); ?>" data-vmp-copy-success="<?php echo esc_attr__('Rekening Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Rekening', 'velocity-marketplace'); ?></button>
+                                            <?php endif; ?>
+                                        </div>
                                         <div class="small text-muted mt-2"><?php echo esc_html__('Atas Nama', 'velocity-marketplace'); ?></div>
                                         <div><?php echo esc_html((string) ($bank_account['account_holder'] ?? '-')); ?></div>
                                     </div>
@@ -132,6 +144,8 @@ if ($invoice !== '') {
                                 }
                             }
                             $group_shipping_cost = (float) ($shipping_group['cost'] ?? 0);
+                            $group_received_at = (string) ($shipping_group['received_at'] ?? '');
+                            $group_timeline_steps = OrderData::timeline_steps($group_status, $group_received_at);
                             $receipt_no = (string) ($shipping_group['receipt_no'] ?? '');
                             $receipt_courier = (string) ($shipping_group['receipt_courier'] ?? ($shipping_group['courier'] ?? ''));
                             $waybill = null;
@@ -157,11 +171,16 @@ if ($invoice !== '') {
                                             <div class="fw-semibold"><?php echo esc_html($seller_name); ?></div>
                                             <div class="small text-muted mt-1"><strong><?php echo esc_html__('Kurir:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($receipt_courier !== '' ? $receipt_courier : '-'); ?></div>
                                             <div class="small text-muted"><strong><?php echo esc_html__('Layanan:', 'velocity-marketplace'); ?></strong> <?php echo esc_html((string) ($shipping_group['service'] ?? '-')); ?></div>
-                                            <div class="small text-muted"><strong><?php echo esc_html__('Nomor Resi:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($receipt_no !== '' ? $receipt_no : '-'); ?></div>
+                                            <div class="small text-muted d-flex flex-wrap align-items-center gap-2"><strong><?php echo esc_html__('Nomor Resi:', 'velocity-marketplace'); ?></strong> <span><?php echo esc_html($receipt_no !== '' ? $receipt_no : '-'); ?></span><?php if ($receipt_no !== '') : ?><button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr($receipt_no); ?>" data-vmp-copy-success="<?php echo esc_attr__('Resi Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Resi', 'velocity-marketplace'); ?></button><?php endif; ?></div>
                                         </div>
                                         <span class="badge rounded-pill bg-<?php echo esc_attr($group_badge_class); ?> vmp-order-status-badge"><?php echo esc_html(OrderData::status_label($group_status)); ?></span>
+                                </div>
+                                <?php if (!empty($group_timeline_steps)) : ?>
+                                    <div class="mt-3 pt-3 border-top">
+                                        <?php echo \VelocityMarketplace\Frontend\Template::render('order-timeline', ['steps' => $group_timeline_steps]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                     </div>
-                                    <div class="vmp-order-group__lines">
+                                <?php endif; ?>
+                                <div class="vmp-order-group__lines">
                                         <?php foreach ($group_items as $group_item) : ?>
                                             <?php
                                             $line_product_id = (int) ($group_item['product_id'] ?? 0);

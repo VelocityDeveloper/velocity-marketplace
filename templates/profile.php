@@ -219,4 +219,8 @@ $active_submenu = $active_menu === 'store' ? $store_tabs : $account_tabs;
         echo '<div class="alert alert-warning mb-0">' . esc_html__('The selected menu is not available.', 'velocity-marketplace') . '</div>';
     }
     ?>
+
+    <div class="mt-4">
+        <?php echo do_shortcode('[vmp_recently_viewed limit="4" exclude_current="false"]'); ?>
+    </div>
 </div>

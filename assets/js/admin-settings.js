@@ -65,6 +65,9 @@
     target.form.email_template_admin_order = String(settings.email_template_admin_order || '');
     target.form.email_template_customer_order = String(settings.email_template_customer_order || '');
     target.form.email_template_status_update = String(settings.email_template_status_update || '');
+    target.gateways = settings.gateways && typeof settings.gateways === 'object'
+      ? settings.gateways
+      : { duitku: false };
   };
 
   // Membaca isi editor email dari TinyMCE atau textarea fallback.
@@ -99,6 +102,7 @@
     loading: false,
     saveMessage: '',
     saveError: '',
+    gateways: { duitku: false },
     popularBankEntries: Object.entries(cfg.popularBanks || {}).map(([code, label]) => ({ code, label })),
     form: {
       currency: 'IDR',

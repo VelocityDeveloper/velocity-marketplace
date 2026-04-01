@@ -51,6 +51,61 @@ class OrderData
         return isset($map[$status]) ? $map[$status] : 'secondary';
     }
 
+    public static function timeline_steps($status, $received_at = '')
+    {
+        $status = self::normalize_status($status);
+        $received_at = is_string($received_at) ? trim($received_at) : '';
+
+        if (in_array($status, ['cancelled', 'refunded'], true)) {
+            return [];
+        }
+
+        $current_step = 1;
+        if (in_array($status, ['processing'], true)) {
+            $current_step = 2;
+        } elseif (in_array($status, ['shipped'], true)) {
+            $current_step = 3;
+        } elseif (in_array($status, ['completed'], true)) {
+            $current_step = 4;
+        }
+
+        $steps = [
+            [
+                'key' => 'paid',
+                'label' => __('Pembayaran', 'velocity-marketplace'),
+                'description' => in_array($status, ['pending_payment', 'pending_verification'], true)
+                    ? __('Menunggu pembayaran dikonfirmasi.', 'velocity-marketplace')
+                    : __('Pembayaran sudah dikonfirmasi.', 'velocity-marketplace'),
+            ],
+            [
+                'key' => 'processed',
+                'label' => __('Diproses', 'velocity-marketplace'),
+                'description' => __('Pesanan sedang disiapkan oleh toko.', 'velocity-marketplace'),
+            ],
+            [
+                'key' => 'shipped',
+                'label' => __('Dikirim', 'velocity-marketplace'),
+                'description' => __('Pesanan sudah diserahkan ke kurir.', 'velocity-marketplace'),
+            ],
+            [
+                'key' => 'completed',
+                'label' => __('Selesai', 'velocity-marketplace'),
+                'description' => $received_at !== ''
+                    ? sprintf(__('Diterima pada %s.', 'velocity-marketplace'), $received_at)
+                    : __('Pesanan sudah diterima pembeli.', 'velocity-marketplace'),
+            ],
+        ];
+
+        foreach ($steps as $index => $step) {
+            $position = $index + 1;
+            $steps[$index]['is_complete'] = $position < $current_step;
+            $steps[$index]['is_current'] = $position === $current_step;
+            $steps[$index]['is_pending'] = $position > $current_step;
+        }
+
+        return $steps;
+    }
+
     public static function get_items($order_id)
     {
         $items = get_post_meta((int) $order_id, 'vmp_items', true);

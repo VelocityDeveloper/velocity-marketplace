@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Support;
 
+use VelocityMarketplace\Modules\Payment\DuitkuGateway;
+
 class Settings
 {
     public static function all()
@@ -63,7 +65,22 @@ class Settings
             }
         }
 
+        $filtered = array_values(array_filter($filtered, static function ($method) {
+            if ($method === 'duitku') {
+                return DuitkuGateway::is_available();
+            }
+
+            return true;
+        }));
+
         return !empty($filtered) ? $filtered : ['bank'];
+    }
+
+    public static function gateway_flags()
+    {
+        return [
+            'duitku' => DuitkuGateway::is_available(),
+        ];
     }
 
     public static function default_order_status()

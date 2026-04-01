@@ -11,6 +11,22 @@ Status saat ini:
 
 Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, alur, nama shortcode, atau file baru, README ini harus ikut diperbarui supaya orang berikutnya tidak menebak-nebak arsitektur plugin.
 
+## Perubahan terbaru
+
+- katalog dan archive produk:
+  - sort baru `Terlaris` dan `Rating Tertinggi`
+  - chip filter aktif + tombol reset
+- single product:
+  - share sosial via SVG Bootstrap (`WhatsApp`, `Facebook`, `X`, `Telegram`)
+  - copy link produk
+  - seller card menampilkan `last active`
+- halaman akun:
+  - blok `Produk yang Baru Dilihat` dipasang di bagian bawah halaman
+- order/tracking:
+  - timeline status per toko
+  - tombol copy untuk invoice, resi, dan rekening transfer
+  - tombol lanjut bayar untuk Duitku jika pembayaran belum selesai
+
 ## Standar saat ini
 
 - Prefix shortcode: `vmp_*`
@@ -84,7 +100,9 @@ Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan 
 - `[vmp_product_gallery]`
 - `[vmp_product_reviews]`
 - `[vmp_product_seller_card]`
-- `[vmp_product_description]`
+- `[vmp_related_products]`
+- `[vmp_recently_viewed]`
+  - default dipakai di bagian bawah halaman akun
 - `[vmp_product_filter]`
 - `[vmp_thumbnail]`
 - `[vmp_price]`
@@ -108,6 +126,16 @@ Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan 
 - `[vmp_product_filter]`
   - render form filter saja
   - cocok untuk Beaver Builder / Themer karena hasil filter memakai query string + `pre_get_posts`
+  - sekarang mendukung chip filter aktif + tombol reset
+  - sort mendukung:
+    - `Terbaru`
+    - `Terlaris`
+    - `Rating Tertinggi`
+    - `Harga Terendah`
+    - `Harga Tertinggi`
+    - `Nama A-Z`
+    - `Nama Z-A`
+    - `Paling Banyak Dilihat`
 
 - `[vmp_product_gallery]`
   - render galeri produk lengkap
@@ -124,9 +152,29 @@ Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan 
   - render kartu seller pada halaman produk
   - support current single product context tanpa isi `id`
 
-- `[vmp_product_description]`
-  - render deskripsi produk dengan format konten WordPress
-  - support current single product context tanpa isi `id`
+- `[vmp_related_products]`
+  - render daftar produk terkait berdasarkan kategori yang sama
+  - exclude produk aktif
+  - urutan default: `vmp_sold_count DESC`, lalu `date DESC`
+  - atribut:
+    - `id`
+    - `limit`
+    - `title`
+  - contoh:
+    - `[vmp_related_products]`
+    - `[vmp_related_products id="123" limit="8"]`
+
+- `[vmp_recently_viewed]`
+  - render daftar produk yang baru dilihat
+  - source data dari cookie `vmp_recently_viewed`
+  - support current product context untuk exclude item aktif
+  - atribut:
+    - `limit`
+    - `exclude_current="true|false"`
+    - `title`
+  - contoh:
+    - `[vmp_recently_viewed]`
+    - `[vmp_recently_viewed limit="4" exclude_current="false"]`
 
 - `[vmp_rating]`
   - renderer rating reusable untuk product, seller, atau nilai custom
@@ -364,6 +412,17 @@ Installer akan membuat page ini jika belum ada:
   - buat order `vmp_order`
   - validasi kupon
   - validasi COD per kota per toko
+  - create invoice Duitku jika metode pembayaran `duitku` dipilih dan gateway tersedia
+
+### `src/Modules/Payment/`
+
+- `DuitkuGateway.php`
+  - helper availability gateway Duitku dari plugin `velocity-addons`
+  - bridge create invoice ke `Velocity_Addons_Duitku`
+
+- `DuitkuCallbackListener.php`
+  - listener action `velocity_duitku_callback`
+  - sinkronisasi callback gateway ke status `vmp_order`
 
 ### `src/Modules/Coupon/`
 
@@ -544,8 +603,8 @@ Catatan:
   - memanggil block reusable:
     - `product-gallery.php`
     - `product-seller-card.php`
-    - `product-description.php`
     - `product-reviews.php`
+  - deskripsi produk memakai `the_content()` WordPress
   - tombol add to cart / wishlist tetap inline karena masih satu alur dengan opsi produk
 
 - `product-gallery.php`
@@ -553,9 +612,6 @@ Catatan:
 
 - `product-seller-card.php`
   - block reusable kartu seller di halaman produk
-
-- `product-description.php`
-  - block reusable deskripsi produk
 
 - `product-reviews.php`
   - block reusable ringkasan + daftar ulasan produk
@@ -646,6 +702,10 @@ Catatan:
 4. user bisa pakai kupon bila valid
 5. user pilih service ongkir per seller atau COD jika tersedia di kota tujuan
 6. `CheckoutController.php` buat `vmp_order`
+7. jika metode pembayaran `duitku` dipilih dan plugin gateway aktif:
+   - marketplace membuat invoice Duitku
+   - payment URL disimpan ke meta order
+   - buyer diarahkan ke halaman pembayaran Duitku
 
 ### Order per toko
 
@@ -702,6 +762,7 @@ Catatan:
 - Renderer rating sekarang dipusatkan di `RatingRenderer`
 - Shortcode rating/count baru tersedia untuk kebutuhan Beaver Builder / Themer
 - Single product mulai dipecah ke block reusable agar native template dan Beaver Themer bisa berbagi renderer yang sama
+- Deskripsi produk tidak lagi punya shortcode khusus; default theme memakai `the_content()` dan Beaver Builder bisa memakai shortcode konten bawaan
 - Meta profil user sekarang disatukan:
   - semua member membaca key yang sama
   - hanya `vmp_couriers` yang khusus toko

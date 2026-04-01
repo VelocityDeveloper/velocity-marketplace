@@ -9,6 +9,8 @@ $categories = get_terms([
     'hide_empty' => false,
 ]);
 $label_options = $product_query->label_options();
+$sort_options = $product_query->sort_options();
+$active_filter_chips = $product_query->describe_active_filters($filters);
 $archive_url = get_post_type_archive_link('vmp_product');
 $pages = get_option(VMP_PAGES_OPTION, []);
 $catalog_url = site_url('/catalog/');
@@ -39,14 +41,14 @@ get_header();
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1"><?php post_type_archive_title(); ?></h1>
-            <div class="text-muted"><?php echo esc_html__('Browse products available in the marketplace.', 'velocity-marketplace'); ?></div>
+            <div class="text-muted"><?php echo esc_html__('Jelajahi produk yang tersedia di marketplace.', 'velocity-marketplace'); ?></div>
         </div>
         <a href="<?php echo esc_url($catalog_url); ?>" class="btn btn-sm btn-outline-dark"><?php echo esc_html__('Buka Katalog Interaktif', 'velocity-marketplace'); ?></a>
     </div>
 
     <div class="d-flex d-lg-none justify-content-between align-items-center gap-2 mb-3">
         <div class="small text-muted">
-            <?php echo esc_html(sprintf(_n('%d product found', '%d products found', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?>
+            <?php echo esc_html(sprintf(_n('%d produk ditemukan', '%d produk ditemukan', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?>
         </div>
         <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="offcanvas" data-bs-target="#vmpArchiveFilterCanvas" aria-controls="vmpArchiveFilterCanvas">
             <?php echo esc_html__('Filter Produk', 'velocity-marketplace'); ?>
@@ -65,6 +67,7 @@ get_header();
                         'filters' => $filters,
                         'categories' => $categories,
                         'label_options' => $label_options,
+                        'sort_options' => $sort_options,
                         'action_url' => $archive_url,
                     ]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                 </div>
@@ -73,8 +76,17 @@ get_header();
 
         <div class="col-12 col-lg-9">
             <div class="d-none d-lg-flex justify-content-between align-items-center gap-3 mb-3">
-                <div class="small text-muted"><?php echo esc_html(sprintf(_n('%d product found', '%d products found', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?></div>
+                <div class="small text-muted"><?php echo esc_html(sprintf(_n('%d produk ditemukan', '%d produk ditemukan', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?></div>
             </div>
+
+            <?php if (!empty($active_filter_chips)) : ?>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <?php foreach ($active_filter_chips as $chip) : ?>
+                        <span class="badge rounded-pill text-bg-light border"><?php echo esc_html((string) ($chip['label'] ?? '') . ': ' . (string) ($chip['value'] ?? '')); ?></span>
+                    <?php endforeach; ?>
+                    <a href="<?php echo esc_url($archive_url); ?>" class="btn btn-sm btn-link text-decoration-none px-0"><?php echo esc_html__('Reset Filter', 'velocity-marketplace'); ?></a>
+                </div>
+            <?php endif; ?>
 
             <?php if (have_posts()) : ?>
                 <div class="row g-3">
@@ -131,7 +143,7 @@ get_header();
                     ?>
                 </div>
             <?php else : ?>
-                <div class="alert alert-info mb-0"><?php echo esc_html__('No products are available right now.', 'velocity-marketplace'); ?></div>
+                <div class="alert alert-info mb-0"><?php echo esc_html__('Belum ada produk yang tersedia saat ini.', 'velocity-marketplace'); ?></div>
             <?php endif; ?>
         </div>
     </div>
@@ -141,7 +153,7 @@ get_header();
     <div class="offcanvas-header">
         <div>
             <h2 class="offcanvas-title h5 mb-0" id="vmpArchiveFilterCanvasLabel"><?php echo esc_html__('Filter Produk', 'velocity-marketplace'); ?></h2>
-            <div class="small text-muted"><?php echo esc_html(sprintf(_n('%d product found', '%d products found', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?></div>
+            <div class="small text-muted"><?php echo esc_html(sprintf(_n('%d produk ditemukan', '%d produk ditemukan', (int) $wp_query->found_posts, 'velocity-marketplace'), (int) $wp_query->found_posts)); ?></div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="<?php echo esc_attr__('Close', 'velocity-marketplace'); ?>"></button>
     </div>
@@ -150,6 +162,7 @@ get_header();
             'filters' => $filters,
             'categories' => $categories,
             'label_options' => $label_options,
+            'sort_options' => $sort_options,
             'action_url' => $archive_url,
             'form_class' => 'vmp-archive-filter-form--mobile',
         ]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>

@@ -35,10 +35,14 @@ class SettingsService
 
         $raw_methods = isset($input['payment_methods']) && is_array($input['payment_methods']) ? $input['payment_methods'] : [];
         $allowed_methods = ['bank', 'duitku', 'paypal', 'cod'];
+        $gateway_flags = Settings::gateway_flags();
         $payment_methods = [];
         foreach ($raw_methods as $method) {
             $m = sanitize_key((string) $method);
             if (in_array($m, $allowed_methods, true)) {
+                if ($m === 'duitku' && empty($gateway_flags['duitku'])) {
+                    continue;
+                }
                 $payment_methods[] = $m;
             }
         }
@@ -162,7 +166,7 @@ class SettingsService
             'currency' => isset($settings['currency']) ? (string) $settings['currency'] : 'IDR',
             'currency_symbol' => isset($settings['currency_symbol']) ? (string) $settings['currency_symbol'] : 'Rp',
             'default_order_status' => isset($settings['default_order_status']) ? (string) $settings['default_order_status'] : 'pending_payment',
-            'payment_methods' => isset($settings['payment_methods']) && is_array($settings['payment_methods']) ? array_values($settings['payment_methods']) : ['bank'],
+            'payment_methods' => Settings::payment_methods(),
             'seller_product_status' => isset($settings['seller_product_status']) ? (string) $settings['seller_product_status'] : 'publish',
             'shipping_api_key' => isset($settings['shipping_api_key']) ? (string) $settings['shipping_api_key'] : '',
             'popular_bank_accounts' => array_values($popular_bank_accounts),
@@ -177,6 +181,7 @@ class SettingsService
             'email_template_status_update' => isset($settings['email_template_status_update']) && (string) $settings['email_template_status_update'] !== ''
                 ? (string) $settings['email_template_status_update']
                 : (string) $email_defaults['email_template_status_update'],
+            'gateways' => Settings::gateway_flags(),
         ];
     }
 

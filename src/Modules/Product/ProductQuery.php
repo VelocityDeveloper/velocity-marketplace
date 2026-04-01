@@ -120,7 +120,7 @@ class ProductQuery
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'DESC';
         } elseif ($filters['sort'] === 'popular') {
-            $args['meta_key'] = 'vmp_hits';
+            $args['meta_key'] = 'hit';
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'DESC';
         } elseif ($filters['sort'] === 'name_asc') {
@@ -149,9 +149,9 @@ class ProductQuery
     public function label_options()
     {
         return [
-            'new' => __('New', 'velocity-marketplace'),
-            'limited' => __('Limited', 'velocity-marketplace'),
-            'best' => __('Best Seller', 'velocity-marketplace'),
+            'new' => __('Baru', 'velocity-marketplace'),
+            'limited' => __('Terbatas', 'velocity-marketplace'),
+            'best' => __('Terlaris', 'velocity-marketplace'),
         ];
     }
 

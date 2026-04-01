@@ -1,15 +1,6 @@
 <?php
 $captcha_html = \VelocityMarketplace\Modules\Captcha\CaptchaBridge::render('#vmp-checkout-form');
-$settings = get_option(VMP_SETTINGS_OPTION, []);
-if (!is_array($settings)) {
-    $settings = [];
-}
-$active_payment_methods = isset($settings['payment_methods']) && is_array($settings['payment_methods'])
-    ? array_values(array_unique(array_map('sanitize_key', $settings['payment_methods'])))
-    : ['bank'];
-if (empty($active_payment_methods)) {
-    $active_payment_methods = ['bank'];
-}
+$active_payment_methods = \VelocityMarketplace\Support\Settings::payment_methods();
 $payment_labels = [
     'bank' => __('Transfer Bank', 'velocity-marketplace'),
     'duitku' => 'Duitku',

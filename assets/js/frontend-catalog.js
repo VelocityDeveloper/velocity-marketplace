@@ -145,6 +145,16 @@
     message: '',
     placeholder,
     perPage,
+    sortLabels: {
+      latest: 'Terbaru',
+      sold_desc: 'Terlaris',
+      rating_desc: 'Rating Tertinggi',
+      price_asc: 'Harga Terendah',
+      price_desc: 'Harga Tertinggi',
+      name_asc: 'Nama A-Z',
+      name_desc: 'Nama Z-A',
+      popular: 'Paling Banyak Dilihat',
+    },
     // Memuat wishlist user dan halaman katalog pertama saat komponen aktif.
     async init() {
       await this.initLocation();
@@ -238,6 +248,89 @@
       this.maxPrice = '';
       this.resetLocationFilters();
       this.fetchProducts(1);
+    },
+    selectedCategoryLabel() {
+      if (!this.cat) {
+        return '';
+      }
+      const select = document.querySelector('.vmp-wrap [x-model="cat"]');
+      if (!select) {
+        return '';
+      }
+      const option = Array.from(select.options || []).find((row) => String(row.value || '') === String(this.cat || ''));
+      return option ? String(option.text || '').trim() : '';
+    },
+    selectedLabelName() {
+      if (!this.label) {
+        return '';
+      }
+      const select = document.querySelector('.vmp-wrap [x-model="label"]');
+      if (!select) {
+        return '';
+      }
+      const option = Array.from(select.options || []).find((row) => String(row.value || '') === String(this.label || ''));
+      return option ? String(option.text || '').trim() : '';
+    },
+    selectedStoreTypeName() {
+      if (!this.storeType) {
+        return '';
+      }
+      return this.storeType === 'star_seller' ? 'Star Seller' : 'Toko Biasa';
+    },
+    selectedProvinceName() {
+      const row = this.provinces.find((province) => String(province.province_id || '') === String(this.storeProvinceId || ''));
+      return row ? String(row.province || '').trim() : '';
+    },
+    selectedCityName() {
+      const row = this.cities.find((city) => String(city.city_id || '') === String(this.storeCityId || ''));
+      if (!row) {
+        return '';
+      }
+      return `${row.type ? `${row.type} ` : ''}${row.city_name}`.trim();
+    },
+    selectedSubdistrictName() {
+      const row = this.subdistricts.find((subdistrict) => String(subdistrict.subdistrict_id || '') === String(this.storeSubdistrictId || ''));
+      return row ? String(row.subdistrict_name || '').trim() : '';
+    },
+    activeFilterChips() {
+      const chips = [];
+      if (this.search) {
+        chips.push({ key: 'search', label: `Cari: ${this.search}` });
+      }
+      const categoryLabel = this.selectedCategoryLabel();
+      if (categoryLabel) {
+        chips.push({ key: 'cat', label: `Kategori: ${categoryLabel}` });
+      }
+      const productLabel = this.selectedLabelName();
+      if (productLabel) {
+        chips.push({ key: 'label', label: `Label: ${productLabel}` });
+      }
+      const storeTypeLabel = this.selectedStoreTypeName();
+      if (storeTypeLabel) {
+        chips.push({ key: 'storeType', label: `Toko: ${storeTypeLabel}` });
+      }
+      const provinceName = this.selectedProvinceName();
+      if (provinceName) {
+        chips.push({ key: 'province', label: `Provinsi: ${provinceName}` });
+      }
+      const cityName = this.selectedCityName();
+      if (cityName) {
+        chips.push({ key: 'city', label: `Kota: ${cityName}` });
+      }
+      const subdistrictName = this.selectedSubdistrictName();
+      if (subdistrictName) {
+        chips.push({ key: 'subdistrict', label: `Kecamatan: ${subdistrictName}` });
+      }
+      if (this.minPrice !== '' && this.minPrice !== null) {
+        chips.push({ key: 'minPrice', label: `Min: ${money(this.minPrice)}` });
+      }
+      if (this.maxPrice !== '' && this.maxPrice !== null) {
+        chips.push({ key: 'maxPrice', label: `Maks: ${money(this.maxPrice)}` });
+      }
+      if (this.sort && this.sort !== 'latest' && this.sortLabels[this.sort]) {
+        chips.push({ key: 'sort', label: `Urut: ${this.sortLabels[this.sort]}` });
+      }
+      return chips;
     },
     // Menambahkan produk dari katalog ke keranjang dengan opsi default teraman.
     async addToCart(item) {

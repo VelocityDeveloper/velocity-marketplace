@@ -7,6 +7,7 @@ use VelocityMarketplace\Modules\Message\MessageRepository;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Product\ProductData;
 use VelocityMarketplace\Modules\Product\ProductQuery;
+use VelocityMarketplace\Modules\Product\RelatedProducts;
 use VelocityMarketplace\Modules\Product\RecentlyViewed;
 use VelocityMarketplace\Modules\Review\RatingRenderer;
 use VelocityMarketplace\Support\Settings;
@@ -23,7 +24,7 @@ class Shortcode
         add_shortcode('vmp_product_gallery', [$this, 'render_product_gallery']);
         add_shortcode('vmp_product_reviews', [$this, 'render_product_reviews']);
         add_shortcode('vmp_product_seller_card', [$this, 'render_product_seller_card']);
-        add_shortcode('vmp_product_description', [$this, 'render_product_description']);
+        add_shortcode('vmp_related_products', [$this, 'render_related_products']);
         add_shortcode('vmp_recently_viewed', [$this, 'render_recently_viewed']);
         add_shortcode('vmp_thumbnail', [$this, 'render_thumbnail']);
         add_shortcode('vmp_price', [$this, 'render_price']);
@@ -182,12 +183,14 @@ class Shortcode
         ]);
     }
 
-    public function render_product_description($atts = [])
+    public function render_related_products($atts = [])
     {
         $this->ensure_frontend_assets();
 
         $atts = shortcode_atts([
             'id' => 0,
+            'limit' => 4,
+            'title' => __('Produk Terkait', 'velocity-marketplace'),
         ], $atts);
 
         $product_id = $this->resolve_product_id((int) $atts['id']);
@@ -195,8 +198,14 @@ class Shortcode
             return '';
         }
 
-        return Template::render('product-description', [
-            'product_id' => $product_id,
+        $items = RelatedProducts::items($product_id, (int) $atts['limit']);
+        if (empty($items)) {
+            return '';
+        }
+
+        return Template::render('product-related', [
+            'title' => (string) $atts['title'],
+            'items' => $items,
         ]);
     }
 

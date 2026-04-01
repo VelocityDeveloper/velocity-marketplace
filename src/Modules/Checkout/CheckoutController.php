@@ -8,6 +8,7 @@ use VelocityMarketplace\Modules\Coupon\CouponService;
 use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Order\OrderData;
+use VelocityMarketplace\Modules\Payment\DuitkuGateway;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
 use VelocityMarketplace\Support\Settings;
 use WP_REST_Request;
@@ -234,6 +235,26 @@ class CheckoutController
         update_post_meta($order_id, 'vmp_coupon_shipping_discount', (float) $coupon_shipping_discount);
         update_post_meta($order_id, 'vmp_coupon_discount', (float) $coupon_discount);
 
+        $redirect = $this->resolve_profile_url($invoice);
+        if ($payment_method === 'duitku') {
+            $duitku_invoice = $this->create_duitku_invoice($order_id, $invoice, $customer, $order_items, $total);
+            if (is_wp_error($duitku_invoice)) {
+                wp_delete_post($order_id, true);
+
+                return new WP_REST_Response([
+                    'message' => $duitku_invoice->get_error_message(),
+                ], 400);
+            }
+
+            update_post_meta($order_id, 'vmp_gateway_name', 'duitku');
+            update_post_meta($order_id, 'vmp_gateway_reference', sanitize_text_field((string) ($duitku_invoice['reference'] ?? '')));
+            update_post_meta($order_id, 'vmp_gateway_payment_url', esc_url_raw((string) ($duitku_invoice['paymentUrl'] ?? '')));
+            update_post_meta($order_id, 'vmp_gateway_status', sanitize_text_field((string) ($duitku_invoice['statusCode'] ?? 'pending')));
+            update_post_meta($order_id, 'vmp_status', 'pending_payment');
+
+            $redirect = (string) ($duitku_invoice['paymentUrl'] ?? $redirect);
+        }
+
         foreach ($order_items as $line) {
             $product_id = (int) $line['product_id'];
             $qty = (int) $line['qty'];
@@ -303,7 +324,7 @@ class CheckoutController
             'coupon_scope' => (string) $coupon_scope,
             'coupon_product_discount' => (float) $coupon_product_discount,
             'coupon_shipping_discount' => (float) $coupon_shipping_discount,
-            'redirect' => $this->resolve_profile_url($invoice),
+            'redirect' => $redirect,
         ], 201);
     }
 
@@ -318,6 +339,65 @@ class CheckoutController
             'tab' => 'tracking',
             'invoice' => $invoice,
         ], Settings::profile_url());
+    }
+
+    private function create_duitku_invoice($order_id, $invoice, array $customer, array $order_items, $total)
+    {
+        if (!DuitkuGateway::is_available()) {
+            return new \WP_Error('duitku_not_available', __('Gateway Duitku tidak tersedia. Pilih metode pembayaran lain.', 'velocity-marketplace'));
+        }
+
+        $email = $customer['email'] !== '' && is_email($customer['email'])
+            ? $customer['email']
+            : 'customer+' . strtolower($invoice) . '@example.com';
+
+        $phone = preg_replace('/[^0-9]/', '', (string) ($customer['phone'] ?? ''));
+        $customer_name = trim((string) ($customer['name'] ?? ''));
+        $name_parts = preg_split('/\s+/', $customer_name);
+        $first_name = !empty($name_parts[0]) ? (string) $name_parts[0] : 'Customer';
+        $last_name = count($name_parts) > 1 ? implode(' ', array_slice($name_parts, 1)) : '';
+
+        $address = [
+            'firstName' => $first_name,
+            'lastName' => $last_name,
+            'address' => (string) ($customer['address'] ?? ''),
+            'city' => '',
+            'postalCode' => (string) ($customer['postal_code'] ?? ''),
+            'phone' => $phone,
+            'countryCode' => 'ID',
+        ];
+
+        $item_details = [];
+        foreach ($order_items as $line) {
+            $item_details[] = [
+                'name' => (string) ($line['title'] ?? 'Produk'),
+                'price' => (int) round((float) ($line['price'] ?? 0)),
+                'quantity' => max(1, (int) ($line['qty'] ?? 1)),
+            ];
+        }
+
+        return DuitkuGateway::create_invoice([
+            'paymentAmount' => (int) round((float) $total),
+            'merchantOrderId' => (string) $invoice,
+            'productDetails' => 'Pembayaran pesanan ' . $invoice,
+            'additionalParam' => (string) $order_id,
+            'merchantUserInfo' => (string) get_post_meta($order_id, 'vmp_user_id', true),
+            'customerVaName' => $customer_name !== '' ? $customer_name : 'Customer',
+            'email' => $email,
+            'phoneNumber' => $phone,
+            'itemDetails' => $item_details,
+            'customerDetail' => [
+                'firstName' => $first_name,
+                'lastName' => $last_name,
+                'email' => $email,
+                'phoneNumber' => $phone,
+                'billingAddress' => $address,
+                'shippingAddress' => $address,
+            ],
+            'callbackUrl' => '',
+            'returnUrl' => Settings::tracking_url((string) $invoice),
+            'expiryPeriod' => 60,
+        ]);
     }
 
     private function build_shipping_groups($submitted_groups, $destination, $context_data, $order_items, $payment_method, $initial_status = 'pending_payment')

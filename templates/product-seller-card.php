@@ -16,6 +16,14 @@ if ($seller_id <= 0) {
 $seller_user = get_userdata($seller_id);
 $seller_store_name = (string) get_user_meta($seller_id, 'vmp_store_name', true);
 $seller_city = (string) get_user_meta($seller_id, 'vmp_store_city', true);
+$seller_last_active_at = (string) get_user_meta($seller_id, 'vmp_last_active_at', true);
+$seller_last_active_text = '';
+if ($seller_last_active_at !== '') {
+    $seller_last_active_ts = strtotime($seller_last_active_at);
+    if ($seller_last_active_ts) {
+        $seller_last_active_text = sprintf(__('%s yang lalu', 'velocity-marketplace'), human_time_diff($seller_last_active_ts, current_time('timestamp')));
+    }
+}
 $seller_name = $seller_store_name !== ''
     ? $seller_store_name
     : ($seller_user && $seller_user->display_name !== '' ? $seller_user->display_name : ($seller_user ? $seller_user->user_login : __('Penjual', 'velocity-marketplace')));
@@ -32,6 +40,9 @@ $message_url = is_user_logged_in()
         <div class="fw-semibold mb-1"><?php echo esc_html($seller_name); ?></div>
         <?php if ($seller_city !== '') : ?>
             <div class="small text-muted mb-2"><?php echo esc_html($seller_city); ?></div>
+        <?php endif; ?>
+        <?php if ($seller_last_active_text !== '') : ?>
+            <div class="small text-muted mb-2"><?php echo esc_html(sprintf(__('Terakhir aktif %s', 'velocity-marketplace'), $seller_last_active_text)); ?></div>
         <?php endif; ?>
         <div class="small text-muted mb-3">
             <?php if (!empty($seller_summary['is_star_seller'])) : ?>

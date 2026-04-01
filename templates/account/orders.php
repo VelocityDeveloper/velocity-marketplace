@@ -51,6 +51,8 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
         $notes = (string) get_post_meta($order_id, 'vmp_notes', true);
         $transfer_proof_id = (int) get_post_meta($order_id, 'vmp_transfer_proof_id', true);
         $transfer_proof_url = $transfer_proof_id > 0 ? wp_get_attachment_url($transfer_proof_id) : '';
+        $gateway_payment_url = (string) get_post_meta($order_id, 'vmp_gateway_payment_url', true);
+        $gateway_status = (string) get_post_meta($order_id, 'vmp_gateway_status', true);
         $bank_accounts = get_post_meta($order_id, 'vmp_bank_accounts', true);
         if (!is_array($bank_accounts)) {
             $bank_accounts = [];
@@ -84,7 +86,7 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
         <div class="card border-0 shadow-sm mb-3"><div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <div><strong><?php echo esc_html__('Invoice:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($invoice_meta); ?></div>
+                    <div class="d-flex flex-wrap align-items-center gap-2"><strong><?php echo esc_html__('Invoice:', 'velocity-marketplace'); ?></strong> <span><?php echo esc_html($invoice_meta); ?></span><button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr($invoice_meta); ?>" data-vmp-copy-success="<?php echo esc_attr__('Invoice Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Invoice', 'velocity-marketplace'); ?></button></div>
                     <div><strong><?php echo esc_html__('Tanggal:', 'velocity-marketplace'); ?></strong> <?php echo esc_html(get_the_date('d-m-Y H:i', $order_id)); ?></div>
                     <div><strong><?php echo esc_html__('Metode Pembayaran:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($payment !== '' ? strtoupper($payment) : '-'); ?></div>
                 </div>
@@ -95,6 +97,11 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                 </div>
             </div>
             <div class="small text-muted mt-2"><?php echo esc_html__('Catatan Pesanan:', 'velocity-marketplace'); ?> <?php echo esc_html($notes !== '' ? $notes : '-'); ?></div>
+            <?php if ($payment === 'duitku' && $gateway_payment_url !== '' && $gateway_status !== 'paid') : ?>
+                <div class="mt-3">
+                    <a href="<?php echo esc_url($gateway_payment_url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-primary"><?php echo esc_html__('Lanjutkan Pembayaran Duitku', 'velocity-marketplace'); ?></a>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($shipping_groups)) : ?>
                 <div class="mt-4">
                     <h3 class="h6 mb-3"><?php echo esc_html__('Pengiriman per Toko', 'velocity-marketplace'); ?></h3>
@@ -131,6 +138,8 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                             }
                             $group_shipping_cost = (float) ($shipping_group['cost'] ?? 0);
                             $group_total = $group_subtotal + $group_shipping_cost;
+                            $group_received_at = (string) ($shipping_group['received_at'] ?? '');
+                            $group_timeline_steps = OrderData::timeline_steps($group_status, $group_received_at);
                             $waybill_data = null;
                             if ($group_receipt_no !== '' && $group_receipt_courier !== '') {
                                 $maybe_waybill = ShippingController::fetch_waybill($group_receipt_no, $group_receipt_courier);
@@ -150,7 +159,12 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                                                     <?php echo esc_html(' - ' . (string) $shipping_group['service']); ?>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="small text-muted"><?php echo esc_html(sprintf(__('Resi: %s', 'velocity-marketplace'), ($group_receipt_no !== '' ? $group_receipt_no : '-'))); ?></div>
+                                            <div class="small text-muted d-flex flex-wrap align-items-center gap-2">
+                                                <span><?php echo esc_html(sprintf(__('Resi: %s', 'velocity-marketplace'), ($group_receipt_no !== '' ? $group_receipt_no : '-'))); ?></span>
+                                                <?php if ($group_receipt_no !== '') : ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr($group_receipt_no); ?>" data-vmp-copy-success="<?php echo esc_attr__('Resi Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Resi', 'velocity-marketplace'); ?></button>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                         <div class="vmp-order-group__actions">
                                             <?php if ($group_seller_id > 0) : ?>
@@ -169,6 +183,11 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                                             <?php endif; ?>
                                         </div>
                                     </div>
+                                    <?php if (!empty($group_timeline_steps)) : ?>
+                                        <div class="mt-3 pt-3 border-top">
+                                            <?php echo \VelocityMarketplace\Frontend\Template::render('order-timeline', ['steps' => $group_timeline_steps]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div class="vmp-order-group__lines">
                                         <?php foreach ($group_items as $group_item) : ?>
                                             <?php
@@ -322,7 +341,12 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                                 <div class="border rounded p-3 h-100 bg-white">
                                     <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['bank_name'] ?? '-')); ?></div>
                                     <div class="small text-muted mt-2"><?php echo esc_html__('Nomor Rekening', 'velocity-marketplace'); ?></div>
-                                    <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['account_number'] ?? '-')); ?></div>
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <div class="fw-semibold"><?php echo esc_html((string) ($bank_account['account_number'] ?? '-')); ?></div>
+                                        <?php if (!empty($bank_account['account_number'])) : ?>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr((string) $bank_account['account_number']); ?>" data-vmp-copy-success="<?php echo esc_attr__('Rekening Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Rekening', 'velocity-marketplace'); ?></button>
+                                        <?php endif; ?>
+                                    </div>
                                     <div class="small text-muted mt-2"><?php echo esc_html__('Atas Nama', 'velocity-marketplace'); ?></div>
                                     <div><?php echo esc_html((string) ($bank_account['account_holder'] ?? '-')); ?></div>
                                 </div>

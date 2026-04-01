@@ -8,6 +8,28 @@
   const { cfg, request, flashButtonLabel, money, wishlistIconSvg } = shared;
   const bootstrapApi = window.bootstrap || window.justg || null;
 
+  const copyText = async (text) => {
+    const value = String(text || '').trim();
+    if (!value) {
+      throw new Error('Tidak ada teks untuk disalin.');
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  };
+
   // Mengambil pilihan opsi produk dari blok inline yang berada satu wrapper dengan tombol add-to-cart.
   const collectInlineOptions = (button) => {
     const block = button.closest('.vmp-add-to-cart-block');
@@ -302,6 +324,18 @@
 
       const wishlistButton = event.target.closest('.vmp-action-toggle-wishlist');
       if (!wishlistButton) {
+        const copyButton = event.target.closest('[data-vmp-copy-text]');
+        if (!copyButton) {
+          return;
+        }
+
+        event.preventDefault();
+        try {
+          await copyText(copyButton.dataset.vmpCopyText || '');
+          flashButtonLabel(copyButton, copyButton.dataset.vmpCopySuccess || 'Tersalin');
+        } catch (e) {
+          flashButtonLabel(copyButton, 'Gagal');
+        }
         return;
       }
 
