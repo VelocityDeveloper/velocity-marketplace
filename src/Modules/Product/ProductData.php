@@ -4,21 +4,22 @@ namespace VelocityMarketplace\Modules\Product;
 
 use VelocityMarketplace\Modules\Review\ReviewRepository;
 use VelocityMarketplace\Modules\Review\RatingRenderer;
+use VelocityMarketplace\Support\Contract;
 
 class ProductData
 {
     public static function map_post($post_id)
     {
         $post_id = (int) $post_id;
-        if ($post_id <= 0 || get_post_type($post_id) !== 'vmp_product') {
+        if ($post_id <= 0 || !Contract::is_product($post_id)) {
             return null;
         }
 
         $price = self::resolve_price($post_id);
         $sale_price = self::resolve_sale_price($post_id);
-        $variant_name = self::meta_text($post_id, 'variant_name', 'Pilihan Varian');
+        $variant_name = ProductMeta::get_text($post_id, 'variant_name', 'Pilihan Varian');
         $variant_options = self::variant_options($post_id);
-        $price_adjustment_name = self::meta_text($post_id, 'price_adjustment_name', 'Pilihan Harga');
+        $price_adjustment_name = ProductMeta::get_text($post_id, 'price_adjustment_name', 'Pilihan Harga');
         $price_adjustment_options = self::price_adjustment_options($post_id);
         $gallery_ids = self::gallery_ids($post_id);
         $image = self::image_url($post_id, 'large', $gallery_ids);
@@ -50,11 +51,11 @@ class ProductData
             'seller_last_active_text' => $seller_last_active_text,
             'price' => $price,
             'sale_price' => $sale_price,
-            'sku' => self::meta_text($post_id, 'sku'),
+            'sku' => ProductMeta::get_text($post_id, 'sku'),
             'stock' => self::meta_number($post_id, 'stock', null),
             'min_order' => max(1, (int) self::meta_number($post_id, 'min_order', 1)),
             'weight' => self::meta_number($post_id, 'weight', 0),
-            'label' => self::meta_text($post_id, 'label'),
+            'label' => ProductMeta::get_text($post_id, 'label'),
             'is_premium' => (int) self::meta_number($post_id, 'is_premium', 0) === 1,
             'variant_name' => $variant_name,
             'variant_options' => $variant_options,
@@ -106,34 +107,7 @@ class ProductData
 
     public static function price_adjustment_options($post_id)
     {
-        $rows = preg_split('/\r\n|\r|\n/', self::meta_text($post_id, 'price_adjustment_options'));
-        $result = [];
-
-        foreach ((array) $rows as $row) {
-            $line = trim((string) $row);
-            if ($line === '') {
-                continue;
-            }
-            if (strpos($line, '=') !== false) {
-                $parts = array_map('trim', explode('=', $line, 2));
-                $label = isset($parts[0]) ? $parts[0] : '';
-                $price = isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : 0;
-            } else {
-                $label = $line;
-                $price = 0;
-            }
-
-            if ($label === '') {
-                continue;
-            }
-
-            $result[] = [
-                'label' => $label,
-                'amount' => (float) $price,
-            ];
-        }
-
-        return $result;
+        return ProductMeta::get_price_adjustment_options($post_id);
     }
 
     public static function resolve_price_adjustment($post_id, $selected_label)
@@ -155,14 +129,7 @@ class ProductData
 
     public static function variant_options($post_id)
     {
-        $raw = self::meta_text($post_id, 'variant_options');
-        if ($raw === '') {
-            return [];
-        }
-
-        return array_values(array_filter(array_map('trim', explode(',', $raw)), function ($value) {
-            return $value !== '';
-        }));
+        return ProductMeta::get_variant_options($post_id);
     }
 
     public static function normalize_options($post_id, $options = [])
@@ -193,34 +160,17 @@ class ProductData
 
     public static function meta_text($post_id, $key, $default = '')
     {
-        $value = get_post_meta($post_id, $key, true);
-        if ($value === '' || $value === null) {
-            return (string) $default;
-        }
-        return (string) $value;
+        return ProductMeta::get_text($post_id, $key, $default);
     }
 
     public static function meta_number($post_id, $key, $default = 0)
     {
-        $value = get_post_meta($post_id, $key, true);
-        if ($value === '' || !is_numeric($value)) {
-            return $default;
-        }
-        return (float) $value;
+        return ProductMeta::get_number($post_id, $key, $default);
     }
 
     public static function gallery_ids($post_id)
     {
-        $value = get_post_meta($post_id, 'gallery_ids', true);
-        if (is_string($value) && $value !== '') {
-            $value = array_map('trim', explode(',', $value));
-        }
-
-        if (!is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(array_map('intval', $value)));
+        return ProductMeta::get_attachment_ids($post_id, 'gallery_ids');
     }
 
     public static function gallery_urls($gallery_ids)
@@ -273,7 +223,7 @@ class ProductData
         $product_id = (int) $product_id;
         $qty = (int) $qty;
 
-        if ($product_id <= 0 || $qty <= 0 || get_post_type($product_id) !== 'vmp_product') {
+        if ($product_id <= 0 || $qty <= 0 || !Contract::is_product($product_id)) {
             return;
         }
 

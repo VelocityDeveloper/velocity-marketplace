@@ -10,12 +10,12 @@ class OrderAdmin
 {
     public function register()
     {
-        add_filter('manage_edit-vmp_order_columns', [$this, 'columns']);
-        add_action('manage_vmp_order_posts_custom_column', [$this, 'column_content'], 10, 2);
-        add_filter('manage_edit-vmp_order_sortable_columns', [$this, 'sortable_columns']);
+        add_filter('manage_edit-store_order_columns', [$this, 'columns']);
+        add_action('manage_store_order_posts_custom_column', [$this, 'column_content'], 10, 2);
+        add_filter('manage_edit-store_order_sortable_columns', [$this, 'sortable_columns']);
         add_action('pre_get_posts', [$this, 'handle_sorting']);
         add_action('add_meta_boxes', [$this, 'add_meta_boxes']);
-        add_action('save_post_vmp_order', [$this, 'save_meta_box']);
+        add_action('save_post_store_order', [$this, 'save_meta_box']);
         add_action('admin_head-post.php', [$this, 'admin_styles']);
         add_action('admin_head-post-new.php', [$this, 'admin_styles']);
     }
@@ -90,7 +90,7 @@ class OrderAdmin
             return;
         }
 
-        if (($query->get('post_type') ?? '') !== 'vmp_order') {
+        if (($query->get('post_type') ?? '') !== 'store_order') {
             return;
         }
 
@@ -113,7 +113,7 @@ class OrderAdmin
             'vmp-order-summary',
             'Detail Pesanan',
             [$this, 'render_summary_meta_box'],
-            'vmp_order',
+            'store_order',
             'normal',
             'high'
         );
@@ -122,7 +122,7 @@ class OrderAdmin
             'vmp-order-items',
             'Item Pesanan',
             [$this, 'render_items_meta_box'],
-            'vmp_order',
+            'store_order',
             'normal',
             'default'
         );
@@ -130,7 +130,7 @@ class OrderAdmin
 
     public function render_summary_meta_box($post)
     {
-        wp_nonce_field('vmp_order_admin_meta_box', 'vmp_order_admin_meta_box_nonce');
+        wp_nonce_field('store_order_admin_meta_box', 'store_order_admin_meta_box_nonce');
 
         $order_id = (int) $post->ID;
         $invoice = (string) get_post_meta($order_id, 'vmp_invoice', true);
@@ -139,8 +139,8 @@ class OrderAdmin
         $subtotal = (float) get_post_meta($order_id, 'vmp_subtotal', true);
         $shipping_total = (float) get_post_meta($order_id, 'vmp_shipping_total', true);
         $total = (float) get_post_meta($order_id, 'vmp_total', true);
-        $coupon_code = (string) get_post_meta($order_id, 'vmp_coupon_code', true);
-        $coupon_discount = (float) get_post_meta($order_id, 'vmp_coupon_discount', true);
+        $coupon_code = (string) get_post_meta($order_id, 'store_coupon_code', true);
+        $coupon_discount = (float) get_post_meta($order_id, 'store_coupon_discount', true);
         $weight = (float) get_post_meta($order_id, 'vmp_total_weight', true);
         $created_at = (string) get_post_meta($order_id, 'vmp_created_at', true);
         $notes = (string) get_post_meta($order_id, 'vmp_notes', true);
@@ -155,9 +155,9 @@ class OrderAdmin
                     <td><?php echo esc_html($invoice !== '' ? $invoice : '-'); ?></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_order_status">Status Order</label></th>
+                    <th scope="row"><label for="store_order_status">Status Order</label></th>
                     <td>
-                        <select id="vmp_order_status" name="vmp_order_status">
+                        <select id="store_order_status" name="store_order_status">
                             <?php foreach (OrderData::statuses() as $key => $label) : ?>
                                 <option value="<?php echo esc_attr($key); ?>" <?php selected(OrderData::normalize_status($status), $key); ?>><?php echo esc_html($label); ?></option>
                             <?php endforeach; ?>
@@ -360,13 +360,13 @@ class OrderAdmin
             return;
         }
 
-        $nonce = isset($_POST['vmp_order_admin_meta_box_nonce']) ? (string) wp_unslash($_POST['vmp_order_admin_meta_box_nonce']) : '';
-        if ($nonce === '' || !wp_verify_nonce($nonce, 'vmp_order_admin_meta_box')) {
+        $nonce = isset($_POST['store_order_admin_meta_box_nonce']) ? (string) wp_unslash($_POST['store_order_admin_meta_box_nonce']) : '';
+        if ($nonce === '' || !wp_verify_nonce($nonce, 'store_order_admin_meta_box')) {
             return;
         }
 
         $previous_status = (string) get_post_meta($post_id, 'vmp_status', true);
-        $status = isset($_POST['vmp_order_status']) ? (string) wp_unslash($_POST['vmp_order_status']) : '';
+        $status = isset($_POST['store_order_status']) ? (string) wp_unslash($_POST['store_order_status']) : '';
         $normalized_status = OrderData::normalize_status($status);
         update_post_meta($post_id, 'vmp_status', $normalized_status);
 
@@ -461,7 +461,7 @@ class OrderAdmin
     public function admin_styles()
     {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-        if (!$screen || $screen->post_type !== 'vmp_order') {
+        if (!$screen || $screen->post_type !== 'store_order') {
             return;
         }
         ?>
@@ -497,3 +497,4 @@ class OrderAdmin
         <?php
     }
 }
+

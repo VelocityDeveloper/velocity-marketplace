@@ -3,6 +3,8 @@
 namespace VelocityMarketplace\Modules\Cart;
 
 use VelocityMarketplace\Modules\Product\ProductData;
+use VelocityMarketplace\Modules\Product\ProductMeta;
+use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 
 class CartRepository
@@ -34,11 +36,11 @@ class CartRepository
         $qty = (int) $qty;
         $cart_key = is_string($cart_key) ? trim($cart_key) : '';
 
-        if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+        if ($product_id <= 0 || !Contract::is_product($product_id)) {
             return new \WP_Error('invalid_product', 'Produk tidak valid');
         }
 
-        $weight = (float) get_post_meta($product_id, 'weight', true);
+        $weight = (float) ProductMeta::get_number($product_id, 'weight', 0);
         if ($weight <= 0) {
             return new \WP_Error(
                 'missing_weight',

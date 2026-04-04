@@ -234,7 +234,7 @@ class MessageRepository
         $contacts = [];
 
         $order_query = new \WP_Query([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => 300,
             'fields' => 'ids',
@@ -382,3 +382,4 @@ class MessageRepository
         return Account::user_role_label((int) $user_id);
     }
 }
+

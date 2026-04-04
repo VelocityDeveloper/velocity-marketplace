@@ -9,7 +9,9 @@ use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Order\OrderData;
 use VelocityMarketplace\Modules\Payment\DuitkuGateway;
+use VelocityMarketplace\Modules\Product\ProductMeta;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
+use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -114,7 +116,7 @@ class CheckoutController
                 continue;
             }
 
-            $weight = (float) get_post_meta($product_id, 'weight', true);
+            $weight = (float) ProductMeta::get_number($product_id, 'weight', 0);
             if ($weight <= 0) {
                 return new WP_REST_Response([
                     'message' => sprintf(__('Produk "%s" belum memiliki berat. Lengkapi berat produk sebelum checkout.', 'velocity-marketplace'), get_the_title($product_id)),
@@ -204,7 +206,7 @@ class CheckoutController
         $user_id = is_user_logged_in() ? get_current_user_id() : 0;
 
         $order_id = wp_insert_post([
-            'post_type' => 'vmp_order',
+            'post_type' => Contract::ORDER_POST_TYPE,
             'post_status' => 'publish',
             'post_title' => $invoice . ' - ' . $customer['name'],
         ]);
@@ -258,10 +260,10 @@ class CheckoutController
         foreach ($order_items as $line) {
             $product_id = (int) $line['product_id'];
             $qty = (int) $line['qty'];
-            $stock = get_post_meta($product_id, 'stock', true);
+            $stock = ProductMeta::get_number($product_id, 'stock', '');
             if ($stock !== '' && is_numeric($stock)) {
                 $new_stock = max(0, ((int) $stock) - $qty);
-                update_post_meta($product_id, 'stock', $new_stock);
+                ProductMeta::update_logical($product_id, 'stock', $new_stock);
             }
         }
 

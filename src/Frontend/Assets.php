@@ -2,6 +2,7 @@
 
 namespace VelocityMarketplace\Frontend;
 
+use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 use VelocityMarketplace\Modules\Product\ProductData;
 
@@ -205,7 +206,7 @@ class Assets
             ];
         }
 
-        if (is_post_type_archive('vmp_product') || is_singular('vmp_product')) {
+        if (is_post_type_archive(Contract::PRODUCT_POST_TYPE) || is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE) || is_singular(Contract::PRODUCT_POST_TYPE) || is_singular(Contract::LEGACY_PRODUCT_POST_TYPE)) {
             return [
                 'enabled' => true,
                 'profile' => false,
@@ -228,16 +229,31 @@ class Assets
                 $content = (string) $post->post_content;
                 $enabled = $this->content_has_any_shortcode($content, [
                     'vmp_catalog',
+                    'wp_store_catalog',
+                    'wp_store_shop',
                     'vmp_products',
                     'vmp_product_card',
+                    'wp_store_thumbnail',
                     'vmp_thumbnail',
+                    'wp_store_price',
                     'vmp_price',
+                    'wp_store_add_to_cart',
                     'vmp_add_to_cart',
+                    'wp_store_add_to_wishlist',
                     'vmp_add_to_wishlist',
+                    'wp_store_cart',
                     'vmp_cart',
+                    'wp_store_cart_page',
+                    'store_cart',
                     'vmp_cart_page',
+                    'wp_store_checkout',
+                    'store_checkout',
                     'vmp_checkout',
+                    'wp_store_profile',
+                    'store_customer_profile',
                     'vmp_profile',
+                    'wp_store_tracking',
+                    'store_tracking',
                     'vmp_tracking',
                     'vmp_store_profile',
                     'vmp_messages_icon',
@@ -245,6 +261,8 @@ class Assets
                     'vmp_profile_icon',
                 ]);
                 $profile = $this->content_has_any_shortcode($content, [
+                    'wp_store_profile',
+                    'store_customer_profile',
                     'vmp_profile',
                 ]);
 
@@ -295,3 +313,4 @@ class Assets
         return array_values(array_unique($deps));
     }
 }
+

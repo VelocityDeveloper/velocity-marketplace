@@ -11,7 +11,7 @@ class ProductMetaBox
     public function register()
     {
         add_action('add_meta_boxes', [$this, 'add_meta_box']);
-        add_action('save_post_vmp_product', [$this, 'save_meta']);
+        add_action('save_post_store_product', [$this, 'save_meta']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('admin_notices', [$this, 'render_validation_notice']);
     }
@@ -22,7 +22,7 @@ class ProductMetaBox
             'vmp_product_meta',
             'Data Produk Marketplace',
             [$this, 'render_meta_box'],
-            'vmp_product',
+            'store_product',
             'normal',
             'high'
         );
@@ -58,7 +58,7 @@ class ProductMetaBox
         }
 
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-        if (!$screen || $screen->post_type !== 'vmp_product') {
+        if (!$screen || $screen->post_type !== 'store_product') {
             return;
         }
 
@@ -103,12 +103,12 @@ class ProductMetaBox
 
             if (!$this->drafting_for_validation && in_array(get_post_status($post_id), ['publish', 'pending'], true)) {
                 $this->drafting_for_validation = true;
-                remove_action('save_post_vmp_product', [$this, 'save_meta']);
+                remove_action('save_post_store_product', [$this, 'save_meta']);
                 wp_update_post([
                     'ID' => (int) $post_id,
                     'post_status' => 'draft',
                 ]);
-                add_action('save_post_vmp_product', [$this, 'save_meta']);
+                add_action('save_post_store_product', [$this, 'save_meta']);
                 $this->drafting_for_validation = false;
             }
 
@@ -125,7 +125,7 @@ class ProductMetaBox
         }
 
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-        if (!$screen || $screen->post_type !== 'vmp_product') {
+        if (!$screen || $screen->post_type !== 'store_product') {
             return;
         }
 

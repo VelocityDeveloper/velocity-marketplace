@@ -12,7 +12,7 @@ class CouponService
         }
 
         $query = new \WP_Query([
-            'post_type' => 'vmp_coupon',
+            'post_type' => 'store_coupon',
             'post_status' => 'publish',
             'posts_per_page' => 1,
             'title' => $code,
@@ -24,7 +24,7 @@ class CouponService
         }
 
         $query = new \WP_Query([
-            'post_type' => 'vmp_coupon',
+            'post_type' => 'store_coupon',
             'post_status' => 'publish',
             'posts_per_page' => 50,
             's' => $code,
@@ -118,33 +118,34 @@ class CouponService
     public function increment_usage($coupon_id)
     {
         $coupon_id = (int) $coupon_id;
-        if ($coupon_id <= 0 || get_post_type($coupon_id) !== 'vmp_coupon') {
+        if ($coupon_id <= 0 || get_post_type($coupon_id) !== 'store_coupon') {
             return;
         }
 
-        $usage_count = (int) get_post_meta($coupon_id, 'vmp_coupon_usage_count', true);
-        update_post_meta($coupon_id, 'vmp_coupon_usage_count', $usage_count + 1);
+        $usage_count = (int) get_post_meta($coupon_id, 'store_coupon_usage_count', true);
+        update_post_meta($coupon_id, 'store_coupon_usage_count', $usage_count + 1);
     }
 
     public function normalize($coupon_id)
     {
         $coupon_id = (int) $coupon_id;
-        if ($coupon_id <= 0 || get_post_type($coupon_id) !== 'vmp_coupon') {
+        if ($coupon_id <= 0 || get_post_type($coupon_id) !== 'store_coupon') {
             return null;
         }
 
         return [
             'id' => $coupon_id,
             'code' => strtoupper((string) get_the_title($coupon_id)),
-            'scope' => (string) get_post_meta($coupon_id, 'vmp_coupon_scope', true) === 'shipping' ? 'shipping' : 'product',
-            'type' => (string) get_post_meta($coupon_id, 'vmp_coupon_type', true) === 'percent' ? 'percent' : 'fixed',
-            'amount' => (float) get_post_meta($coupon_id, 'vmp_coupon_amount', true),
-            'min_purchase' => (float) get_post_meta($coupon_id, 'vmp_coupon_min_purchase', true),
-            'usage_limit' => (int) get_post_meta($coupon_id, 'vmp_coupon_usage_limit', true),
-            'usage_count' => (int) get_post_meta($coupon_id, 'vmp_coupon_usage_count', true),
-            'starts_at' => (string) get_post_meta($coupon_id, 'vmp_coupon_starts_at', true),
-            'ends_at' => (string) get_post_meta($coupon_id, 'vmp_coupon_ends_at', true),
+            'scope' => (string) get_post_meta($coupon_id, 'store_coupon_scope', true) === 'shipping' ? 'shipping' : 'product',
+            'type' => (string) get_post_meta($coupon_id, 'store_coupon_type', true) === 'percent' ? 'percent' : 'fixed',
+            'amount' => (float) get_post_meta($coupon_id, 'store_coupon_amount', true),
+            'min_purchase' => (float) get_post_meta($coupon_id, 'store_coupon_min_purchase', true),
+            'usage_limit' => (int) get_post_meta($coupon_id, 'store_coupon_usage_limit', true),
+            'usage_count' => (int) get_post_meta($coupon_id, 'store_coupon_usage_count', true),
+            'starts_at' => (string) get_post_meta($coupon_id, 'store_coupon_starts_at', true),
+            'ends_at' => (string) get_post_meta($coupon_id, 'store_coupon_ends_at', true),
             'is_active' => get_post_status($coupon_id) === 'publish',
         ];
     }
 }
+

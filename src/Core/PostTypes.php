@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Core;
 
+use VelocityMarketplace\Support\Contract;
+
 class PostTypes
 {
     public function register()
@@ -13,7 +15,7 @@ class PostTypes
 
     public function register_product_type()
     {
-        register_taxonomy('vmp_product_cat', ['vmp_product'], [
+        register_taxonomy(Contract::PRODUCT_TAXONOMY, Contract::product_post_types(), [
             'hierarchical' => true,
             'labels' => [
                 'name' => 'Kategori Produk',
@@ -33,6 +35,19 @@ class PostTypes
             'query_var' => true,
             'rewrite' => ['slug' => 'kategori-produk'],
             'show_in_rest' => true,
+        ]);
+
+        register_taxonomy(Contract::LEGACY_PRODUCT_TAXONOMY, [Contract::LEGACY_PRODUCT_POST_TYPE], [
+            'hierarchical' => true,
+            'labels' => [
+                'name' => 'Kategori Produk Legacy',
+                'singular_name' => 'Kategori Produk Legacy',
+            ],
+            'show_ui' => false,
+            'show_admin_column' => false,
+            'query_var' => false,
+            'rewrite' => false,
+            'show_in_rest' => false,
         ]);
 
         $labels = [
@@ -63,7 +78,19 @@ class PostTypes
             'menu_icon' => 'dashicons-cart',
         ];
 
-        register_post_type('vmp_product', $args);
+        register_post_type(Contract::PRODUCT_POST_TYPE, $args);
+
+        register_post_type(Contract::LEGACY_PRODUCT_POST_TYPE, array_merge($args, [
+            'labels' => array_merge($labels, [
+                'name' => 'Produk Marketplace Legacy',
+                'menu_name' => 'Produk Marketplace Legacy',
+            ]),
+            'show_ui' => false,
+            'show_in_menu' => false,
+            'show_admin_bar' => false,
+            'show_in_nav_menus' => false,
+            'exclude_from_search' => true,
+        ]));
     }
 
     public function register_order_type()
@@ -96,7 +123,19 @@ class PostTypes
             'menu_icon' => 'dashicons-clipboard',
         ];
 
-        register_post_type('vmp_order', $args);
+        register_post_type(Contract::ORDER_POST_TYPE, $args);
+
+        register_post_type(Contract::LEGACY_ORDER_POST_TYPE, array_merge($args, [
+            'labels' => array_merge($labels, [
+                'name' => 'Pesanan Marketplace Legacy',
+                'menu_name' => 'Pesanan Marketplace Legacy',
+            ]),
+            'show_ui' => false,
+            'show_in_menu' => false,
+            'show_admin_bar' => false,
+            'show_in_nav_menus' => false,
+            'exclude_from_search' => true,
+        ]));
     }
 
     public function register_coupon_type()
@@ -129,6 +168,18 @@ class PostTypes
             'menu_icon' => 'dashicons-tickets-alt',
         ];
 
-        register_post_type('vmp_coupon', $args);
+        register_post_type(Contract::COUPON_POST_TYPE, $args);
+
+        register_post_type(Contract::LEGACY_COUPON_POST_TYPE, array_merge($args, [
+            'labels' => array_merge($labels, [
+                'name' => 'Kupon Marketplace Legacy',
+                'menu_name' => 'Kupon Marketplace Legacy',
+            ]),
+            'show_ui' => false,
+            'show_in_menu' => false,
+            'show_admin_bar' => false,
+            'show_in_nav_menus' => false,
+            'exclude_from_search' => true,
+        ]));
     }
 }

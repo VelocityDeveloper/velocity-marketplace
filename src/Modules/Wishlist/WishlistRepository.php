@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Modules\Wishlist;
 
+use VelocityMarketplace\Support\Contract;
+
 class WishlistRepository
 {
     const USER_META_KEY = 'vmp_wishlist';
@@ -21,7 +23,7 @@ class WishlistRepository
         $ids = [];
         foreach ($raw as $id) {
             $id = (int) $id;
-            if ($id > 0 && get_post_type($id) === 'vmp_product') {
+            if ($id > 0 && Contract::is_product($id)) {
                 $ids[] = $id;
             }
         }
@@ -43,7 +45,7 @@ class WishlistRepository
     {
         $product_id = (int) $product_id;
         $user_id = $user_id > 0 ? (int) $user_id : get_current_user_id();
-        if ($user_id <= 0 || $product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+        if ($user_id <= 0 || $product_id <= 0 || !Contract::is_product($product_id)) {
             return false;
         }
 

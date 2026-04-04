@@ -93,6 +93,9 @@ class Plugin
         $shortcode = new \VelocityMarketplace\Frontend\Shortcode();
         $shortcode->register();
 
+        $wp_store_bridge = new \VelocityMarketplace\Compat\WpStoreBridge($shortcode);
+        $wp_store_bridge->register();
+
         $account = new \VelocityMarketplace\Modules\Account\Account();
         $account->register();
 

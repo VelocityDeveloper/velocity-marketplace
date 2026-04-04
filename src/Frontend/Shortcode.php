@@ -6,10 +6,12 @@ use VelocityMarketplace\Modules\Cart\CartRepository;
 use VelocityMarketplace\Modules\Message\MessageRepository;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Product\ProductData;
+use VelocityMarketplace\Modules\Product\ProductMeta;
 use VelocityMarketplace\Modules\Product\ProductQuery;
 use VelocityMarketplace\Modules\Product\RelatedProducts;
 use VelocityMarketplace\Modules\Product\RecentlyViewed;
 use VelocityMarketplace\Modules\Review\RatingRenderer;
+use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 
 class Shortcode
@@ -18,33 +20,40 @@ class Shortcode
 
     public function register()
     {
-        add_shortcode('vmp_catalog', [$this, 'render_catalog']);
-        add_shortcode('vmp_products', [$this, 'render_products']);
-        add_shortcode('vmp_product_card', [$this, 'render_product_card']);
-        add_shortcode('vmp_product_gallery', [$this, 'render_product_gallery']);
-        add_shortcode('vmp_product_reviews', [$this, 'render_product_reviews']);
-        add_shortcode('vmp_product_seller_card', [$this, 'render_product_seller_card']);
-        add_shortcode('vmp_related_products', [$this, 'render_related_products']);
-        add_shortcode('vmp_recently_viewed', [$this, 'render_recently_viewed']);
-        add_shortcode('vmp_thumbnail', [$this, 'render_thumbnail']);
-        add_shortcode('vmp_price', [$this, 'render_price']);
-        add_shortcode('vmp_add_to_cart', [$this, 'render_add_to_cart']);
-        add_shortcode('vmp_add_to_wishlist', [$this, 'render_add_to_wishlist']);
+        $this->register_shortcode_aliases(['wp_store_catalog', 'vmp_catalog'], 'render_catalog');
+        $this->register_shortcode_aliases(['wp_store_shop', 'vmp_products'], 'render_products');
+        $this->register_shortcode_aliases(['vmp_product_card'], 'render_product_card');
+        $this->register_shortcode_aliases(['wp_store_thumbnail', 'vmp_thumbnail'], 'render_thumbnail');
+        $this->register_shortcode_aliases(['wp_store_price', 'vmp_price'], 'render_price');
+        $this->register_shortcode_aliases(['wp_store_add_to_cart', 'vmp_add_to_cart'], 'render_add_to_cart');
+        $this->register_shortcode_aliases(['wp_store_add_to_wishlist', 'vmp_add_to_wishlist'], 'render_add_to_wishlist');
+        $this->register_shortcode_aliases(['wp_store_related', 'vmp_related_products'], 'render_related_products');
+        $this->register_shortcode_aliases(['vmp_recently_viewed'], 'render_recently_viewed');
+        $this->register_shortcode_aliases(['vmp_product_gallery'], 'render_product_gallery');
+        $this->register_shortcode_aliases(['vmp_product_reviews'], 'render_product_reviews');
+        $this->register_shortcode_aliases(['vmp_product_seller_card'], 'render_product_seller_card');
         add_shortcode('vmp_rating', [$this, 'render_rating']);
         add_shortcode('vmp_review_count', [$this, 'render_review_count']);
         add_shortcode('vmp_sold_count', [$this, 'render_sold_count']);
-        add_shortcode('vmp_cart', [$this, 'render_cart']);
-        add_shortcode('vmp_checkout', [$this, 'render_checkout']);
-        add_shortcode('vmp_profile', [$this, 'render_profile']);
-        add_shortcode('vmp_tracking', [$this, 'render_tracking']);
+        $this->register_shortcode_aliases(['wp_store_cart', 'vmp_cart'], 'render_cart');
+        $this->register_shortcode_aliases(['wp_store_cart_page', 'store_cart', 'vmp_cart_page'], 'render_cart_page');
+        $this->register_shortcode_aliases(['wp_store_checkout', 'store_checkout', 'vmp_checkout'], 'render_checkout');
+        $this->register_shortcode_aliases(['store_customer_profile', 'wp_store_profile', 'vmp_profile'], 'render_profile');
+        $this->register_shortcode_aliases(['wp_store_tracking', 'store_tracking', 'vmp_tracking'], 'render_tracking');
         add_shortcode('vmp_store_profile', [$this, 'render_store_profile']);
-        add_shortcode('vmp_product_filter', [$this, 'render_product_filter']);
+        $this->register_shortcode_aliases(['wp_store_filters', 'vmp_product_filter'], 'render_product_filter');
         add_shortcode('vmp_messages_icon', [$this, 'render_messages_icon']);
         add_shortcode('vmp_notifications_icon', [$this, 'render_notifications_icon']);
-        add_shortcode('vmp_profile_icon', [$this, 'render_profile_icon']);
-        add_shortcode('vmp_cart_page', [$this, 'render_cart_page']);
+        $this->register_shortcode_aliases(['wp_store_link_profile', 'vmp_profile_icon'], 'render_profile_icon');
 
         add_action('wp_footer', [$this, 'render_cart_drawer_footer'], 30);
+    }
+
+    private function register_shortcode_aliases($tags, $method)
+    {
+        foreach ((array) $tags as $tag) {
+            add_shortcode((string) $tag, [$this, $method]);
+        }
     }
 
     public function render_catalog($atts = [])
@@ -513,8 +522,8 @@ class Shortcode
 
         $action_url = trim((string) $atts['action']);
         if ($action_url === '') {
-            if (is_post_type_archive('vmp_product')) {
-                $action_url = get_post_type_archive_link('vmp_product');
+            if (is_post_type_archive(Contract::PRODUCT_POST_TYPE) || is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE)) {
+                $action_url = get_post_type_archive_link(Contract::PRODUCT_POST_TYPE);
             } else {
                 $pages = get_option(VMP_PAGES_OPTION, []);
                 if (is_array($pages) && !empty($pages['katalog'])) {
@@ -531,7 +540,7 @@ class Shortcode
         return Template::render('product-filter-form', [
             'filters' => $product_query->normalize_filters($_GET),
             'categories' => get_terms([
-                'taxonomy' => 'vmp_product_cat',
+                'taxonomy' => Contract::PRODUCT_TAXONOMY,
                 'hide_empty' => false,
             ]),
             'label_options' => $product_query->label_options(),
@@ -622,12 +631,12 @@ class Shortcode
         $product_id = (int) $given_id;
         if ($product_id <= 0) {
             $loop_id = get_the_ID();
-            if ($loop_id && get_post_type($loop_id) === 'vmp_product') {
+            if ($loop_id && Contract::is_product($loop_id)) {
                 $product_id = (int) $loop_id;
             }
         }
 
-        if ($product_id > 0 && get_post_type($product_id) !== 'vmp_product') {
+        if ($product_id > 0 && !Contract::is_product($product_id)) {
             return 0;
         }
 
@@ -643,7 +652,7 @@ class Shortcode
         $sort = sanitize_key((string) ($atts['sort'] ?? 'latest'));
 
         $args = [
-            'post_type' => 'vmp_product',
+            'post_type' => Contract::product_post_types(),
             'post_status' => 'publish',
             'posts_per_page' => $per_page,
             's' => $search,
@@ -654,7 +663,7 @@ class Shortcode
         if ($cat > 0) {
             $args['tax_query'] = [
                 [
-                    'taxonomy' => 'vmp_product_cat',
+                    'taxonomy' => Contract::PRODUCT_TAXONOMY,
                     'field' => 'term_id',
                     'terms' => [$cat],
                 ],
@@ -666,11 +675,11 @@ class Shortcode
         }
 
         if ($sort === 'price_asc') {
-            $args['meta_key'] = 'price';
+            $args['meta_key'] = ProductMeta::canonical_key('price');
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'ASC';
         } elseif ($sort === 'price_desc') {
-            $args['meta_key'] = 'price';
+            $args['meta_key'] = ProductMeta::canonical_key('price');
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'DESC';
         } elseif ($sort === 'popular') {

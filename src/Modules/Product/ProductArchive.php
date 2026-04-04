@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Modules\Product;
 
+use VelocityMarketplace\Support\Contract;
+
 class ProductArchive
 {
     public function register()
@@ -11,7 +13,11 @@ class ProductArchive
 
     public function filter_archive_query($query)
     {
-        if (!($query instanceof \WP_Query) || is_admin() || !$query->is_main_query() || !$query->is_post_type_archive('vmp_product')) {
+        if (!($query instanceof \WP_Query) || is_admin() || !$query->is_main_query()) {
+            return;
+        }
+
+        if (!$query->is_post_type_archive(Contract::PRODUCT_POST_TYPE) && !$query->is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE)) {
             return;
         }
 

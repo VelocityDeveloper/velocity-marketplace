@@ -67,7 +67,7 @@ class WishlistController
         }
 
         $product_id = isset($body['product_id']) ? (int) $body['product_id'] : 0;
-        if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+        if ($product_id <= 0 || get_post_type($product_id) !== 'store_product') {
             return new WP_REST_Response(['message' => 'Produk tidak valid.'], 400);
         }
 
@@ -103,6 +103,7 @@ class WishlistController
         ], 200);
     }
 }
+
 
 
 

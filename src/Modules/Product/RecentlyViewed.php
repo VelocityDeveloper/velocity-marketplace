@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Modules\Product;
 
+use VelocityMarketplace\Support\Contract;
+
 class RecentlyViewed
 {
     const COOKIE_NAME = 'vmp_recently_viewed';
@@ -11,7 +13,7 @@ class RecentlyViewed
         $product_id = (int) $product_id;
         $limit = max(1, min(24, (int) $limit));
 
-        if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product' || headers_sent()) {
+        if ($product_id <= 0 || !Contract::is_product($product_id) || headers_sent()) {
             return;
         }
 
@@ -36,7 +38,7 @@ class RecentlyViewed
         $ids = array_values(array_filter(array_map('intval', explode(',', $raw))));
         $filtered = [];
         foreach ($ids as $id) {
-            if ($id <= 0 || get_post_type($id) !== 'vmp_product') {
+            if ($id <= 0 || !Contract::is_product($id)) {
                 continue;
             }
             if ($exclude_id > 0 && $id === $exclude_id) {
@@ -89,3 +91,4 @@ class RecentlyViewed
         }
     }
 }
+

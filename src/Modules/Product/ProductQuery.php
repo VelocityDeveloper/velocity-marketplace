@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Modules\Product;
 
+use VelocityMarketplace\Support\Contract;
+
 class ProductQuery
 {
     public function normalize_filters($source = [])
@@ -31,7 +33,7 @@ class ProductQuery
         $overrides = is_array($overrides) ? $overrides : [];
 
         $args = [
-            'post_type' => 'vmp_product',
+            'post_type' => Contract::product_post_types(),
             'post_status' => 'publish',
         ];
 
@@ -50,7 +52,7 @@ class ProductQuery
         if ($filters['cat'] > 0) {
             $args['tax_query'] = [
                 [
-                    'taxonomy' => 'vmp_product_cat',
+                    'taxonomy' => Contract::PRODUCT_TAXONOMY,
                     'field' => 'term_id',
                     'terms' => [$filters['cat']],
                 ],
@@ -75,7 +77,7 @@ class ProductQuery
         $meta_query = [];
         if ($filters['min_price'] !== '') {
             $meta_query[] = [
-                'key' => 'price',
+                'key' => ProductMeta::canonical_key('price'),
                 'value' => (float) $filters['min_price'],
                 'type' => 'NUMERIC',
                 'compare' => '>=',
@@ -84,7 +86,7 @@ class ProductQuery
 
         if ($filters['max_price'] !== '') {
             $meta_query[] = [
-                'key' => 'price',
+                'key' => ProductMeta::canonical_key('price'),
                 'value' => (float) $filters['max_price'],
                 'type' => 'NUMERIC',
                 'compare' => '<=',
@@ -92,9 +94,10 @@ class ProductQuery
         }
 
         if ($filters['label'] !== '') {
+            $canonical_label = ProductMeta::canonical_label($filters['label']);
             $meta_query[] = [
-                'key' => 'label',
-                'value' => $filters['label'],
+                'key' => ProductMeta::canonical_key('label'),
+                'value' => $canonical_label !== '' ? $canonical_label : $filters['label'],
                 'compare' => '=',
             ];
         }
@@ -104,11 +107,11 @@ class ProductQuery
         }
 
         if ($filters['sort'] === 'price_asc') {
-            $args['meta_key'] = 'price';
+            $args['meta_key'] = ProductMeta::canonical_key('price');
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'ASC';
         } elseif ($filters['sort'] === 'price_desc') {
-            $args['meta_key'] = 'price';
+            $args['meta_key'] = ProductMeta::canonical_key('price');
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'DESC';
         } elseif ($filters['sort'] === 'sold_desc') {
@@ -183,7 +186,7 @@ class ProductQuery
         }
 
         if ($filters['cat'] > 0) {
-            $term = get_term($filters['cat'], 'vmp_product_cat');
+            $term = get_term($filters['cat'], Contract::PRODUCT_TAXONOMY);
             if ($term && !is_wp_error($term)) {
                 $chips[] = [
                     'key' => 'cat',

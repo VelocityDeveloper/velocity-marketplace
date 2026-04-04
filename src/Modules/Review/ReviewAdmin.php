@@ -13,7 +13,7 @@ class ReviewAdmin
     public function admin_menu()
     {
         add_submenu_page(
-            'edit.php?post_type=vmp_product',
+            'edit.php?post_type=store_product',
             'Ulasan Produk',
             'Ulasan Produk',
             'manage_options',
@@ -57,7 +57,7 @@ class ReviewAdmin
 
         if ($notice !== '') {
             wp_safe_redirect(add_query_arg([
-                'post_type' => 'vmp_product',
+                'post_type' => 'store_product',
                 'page' => 'vmp-reviews',
                 'vmp_notice' => $notice,
             ], admin_url('edit.php')));
@@ -108,13 +108,13 @@ class ReviewAdmin
                         $buyer = get_userdata((int) $review['user_id']);
                         $seller = get_userdata((int) $review['seller_id']);
                         $approve_url = wp_nonce_url(add_query_arg([
-                            'post_type' => 'vmp_product',
+                            'post_type' => 'store_product',
                             'page' => 'vmp-reviews',
                             'vmp_review_action' => $review['is_approved'] ? 'unapprove' : 'approve',
                             'review_id' => (int) $review['id'],
                         ], admin_url('edit.php')), 'vmp_review_action_' . (int) $review['id']);
                         $delete_url = wp_nonce_url(add_query_arg([
-                            'post_type' => 'vmp_product',
+                            'post_type' => 'store_product',
                             'page' => 'vmp-reviews',
                             'vmp_review_action' => 'delete',
                             'review_id' => (int) $review['id'],
@@ -148,7 +148,7 @@ class ReviewAdmin
                     <div class="tablenav-pages">
                         <?php echo wp_kses_post(paginate_links([
                             'base' => add_query_arg([
-                                'post_type' => 'vmp_product',
+                                'post_type' => 'store_product',
                                 'page' => 'vmp-reviews',
                                 'paged' => '%#%',
                             ], admin_url('edit.php')),
@@ -163,3 +163,4 @@ class ReviewAdmin
         <?php
     }
 }
+

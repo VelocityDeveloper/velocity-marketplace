@@ -271,7 +271,7 @@ class OrderData
 
         $limit = max(1, min(300, (int) $limit));
         $query = new \WP_Query([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => $limit,
             'meta_key' => 'vmp_created_at',
@@ -295,5 +295,6 @@ class OrderData
         return $result;
     }
 }
+
 
 

@@ -43,6 +43,19 @@ function vmp_init_plugin()
 }
 add_action('plugins_loaded', 'vmp_init_plugin');
 
+function vmp_register_wp_store_function_aliases()
+{
+    if (defined('WP_STORE_VERSION') || function_exists('wp_store_init')) {
+        return;
+    }
+
+    $compat_file = VMP_PATH . 'compat/wp-store-functions.php';
+    if (file_exists($compat_file)) {
+        require_once $compat_file;
+    }
+}
+add_action('plugins_loaded', 'vmp_register_wp_store_function_aliases', 20);
+
 register_activation_hook(__FILE__, function () {
     $upgrade = new \VelocityMarketplace\Core\Upgrade();
     $upgrade->activate();

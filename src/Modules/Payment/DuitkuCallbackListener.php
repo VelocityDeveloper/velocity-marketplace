@@ -25,7 +25,7 @@ class DuitkuCallbackListener
         }
 
         $orders = get_posts([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => 1,
             'meta_query' => [
@@ -92,3 +92,4 @@ class DuitkuCallbackListener
         (new EmailTemplateService())->send_customer_status_update($order_id, 'processing');
     }
 }
+

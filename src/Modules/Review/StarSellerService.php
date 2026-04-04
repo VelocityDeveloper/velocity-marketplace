@@ -29,7 +29,7 @@ class StarSellerService
         $cancelled_orders = 0;
 
         $query = new \WP_Query([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => -1,
             'fields' => 'ids',
@@ -139,3 +139,4 @@ class StarSellerService
         ];
     }
 }
+

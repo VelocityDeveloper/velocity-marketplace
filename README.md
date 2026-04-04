@@ -7,9 +7,25 @@ Status saat ini:
 - masih tahap pembuatan awal
 - banyak bagian belum final
 - belum dirilis
-- dibuat dari 0, tanpa kebutuhan migrasi/legacy compatibility
+- arah arsitektur sekarang adalah menjadikan `velocity-marketplace` versi lengkap / superset dari `wp-store`, bukan sistem terpisah yang mengabaikan fondasi data lama
 
 Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, alur, nama shortcode, atau file baru, README ini harus ikut diperbarui supaya orang berikutnya tidak menebak-nebak arsitektur plugin.
+
+## Arah Arsitektur
+
+Plugin ini tidak lagi diposisikan sebagai sistem yang berdiri sendiri tanpa hubungan data dengan `wp-store`.
+
+Target resmi perusahaan:
+- `wp-store` = implementasi commerce single-store
+- `velocity-marketplace` = implementasi commerce multi-seller / marketplace
+- keduanya harus bergerak menuju shared commerce contract yang sama untuk:
+  - CPT inti
+  - taxonomy produk
+  - meta inti produk
+  - shortcode publik frontend
+
+Dokumen acuan utamanya ada di:
+- `SHARED-CONTRACT.md`
 
 ## Perubahan terbaru
 
@@ -29,10 +45,16 @@ Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, 
 
 ## Standar saat ini
 
-- Prefix shortcode: `vmp_*`
-- Post type produk: `vmp_product`
-- Post type order: `vmp_order`
-- Taxonomy kategori produk: `vmp_product_cat`
+Catatan:
+- daftar di bawah ini mencerminkan kondisi implementasi saat ini
+- beberapa item masih divergen dari target shared contract
+- divergence yang wajib dibereskan sudah dirangkum di `SHARED-CONTRACT.md`
+
+- Prefix shortcode utama internal: `vmp_*`
+- Canonical shortcode publik lintas plugin: `wp_store_*`
+- Post type produk canonical: `store_product`
+- Post type order canonical: `store_order`
+- Taxonomy kategori produk canonical: `store_product_cat`
 - Option settings: `vmp_settings`
 - Option pages: `vmp_pages`
 - Option db version: `vmp_db_version`
@@ -92,7 +114,10 @@ Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, 
 
 ## Shortcode resmi
 
-Pakai satu standar ini saja. Jangan tambah alias baru kecuali memang ada alasan kuat.
+Catatan:
+- daftar berikut adalah shortcode utama yang saat ini dipakai `velocity-marketplace`
+- untuk kontrak publik lintas plugin perusahaan, shortcode `wp_store_*` tetap dianggap API stabil
+- `vmp_*` tetap hidup sebagai namespace modern / internal
 
 - `[vmp_catalog]`
 - `[vmp_products]`

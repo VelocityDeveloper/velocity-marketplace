@@ -7,9 +7,9 @@ class CouponAdmin
     public function register()
     {
         add_action('add_meta_boxes', [$this, 'add_meta_boxes']);
-        add_action('save_post_vmp_coupon', [$this, 'save_meta_box']);
-        add_filter('manage_edit-vmp_coupon_columns', [$this, 'columns']);
-        add_action('manage_vmp_coupon_posts_custom_column', [$this, 'column_content'], 10, 2);
+        add_action('save_post_store_coupon', [$this, 'save_meta_box']);
+        add_filter('manage_edit-store_coupon_columns', [$this, 'columns']);
+        add_action('manage_store_coupon_posts_custom_column', [$this, 'column_content'], 10, 2);
     }
 
     public function add_meta_boxes()
@@ -18,7 +18,7 @@ class CouponAdmin
             'vmp-coupon-settings',
             'Pengaturan Kupon',
             [$this, 'render_meta_box'],
-            'vmp_coupon',
+            'store_coupon',
             'normal',
             'high'
         );
@@ -26,17 +26,17 @@ class CouponAdmin
 
     public function render_meta_box($post)
     {
-        wp_nonce_field('vmp_coupon_meta_box', 'vmp_coupon_meta_box_nonce');
-        $scope = (string) get_post_meta($post->ID, 'vmp_coupon_scope', true);
+        wp_nonce_field('store_coupon_meta_box', 'store_coupon_meta_box_nonce');
+        $scope = (string) get_post_meta($post->ID, 'store_coupon_scope', true);
         $scope = $scope === 'shipping' ? 'shipping' : 'product';
-        $type = (string) get_post_meta($post->ID, 'vmp_coupon_type', true);
+        $type = (string) get_post_meta($post->ID, 'store_coupon_type', true);
         $type = $type === 'percent' ? 'percent' : 'fixed';
-        $amount = (float) get_post_meta($post->ID, 'vmp_coupon_amount', true);
-        $min_purchase = (float) get_post_meta($post->ID, 'vmp_coupon_min_purchase', true);
-        $usage_limit = (int) get_post_meta($post->ID, 'vmp_coupon_usage_limit', true);
-        $usage_count = (int) get_post_meta($post->ID, 'vmp_coupon_usage_count', true);
-        $starts_at = (string) get_post_meta($post->ID, 'vmp_coupon_starts_at', true);
-        $ends_at = (string) get_post_meta($post->ID, 'vmp_coupon_ends_at', true);
+        $amount = (float) get_post_meta($post->ID, 'store_coupon_amount', true);
+        $min_purchase = (float) get_post_meta($post->ID, 'store_coupon_min_purchase', true);
+        $usage_limit = (int) get_post_meta($post->ID, 'store_coupon_usage_limit', true);
+        $usage_count = (int) get_post_meta($post->ID, 'store_coupon_usage_count', true);
+        $starts_at = (string) get_post_meta($post->ID, 'store_coupon_starts_at', true);
+        $ends_at = (string) get_post_meta($post->ID, 'store_coupon_ends_at', true);
         ?>
         <table class="form-table" role="presentation">
             <tbody>
@@ -48,9 +48,9 @@ class CouponAdmin
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_scope">Cakupan Kupon</label></th>
+                    <th scope="row"><label for="store_coupon_scope">Cakupan Kupon</label></th>
                     <td>
-                        <select id="vmp_coupon_scope" name="vmp_coupon_scope">
+                        <select id="store_coupon_scope" name="store_coupon_scope">
                             <option value="product" <?php selected($scope, 'product'); ?>>Diskon Produk</option>
                             <option value="shipping" <?php selected($scope, 'shipping'); ?>>Diskon Ongkir</option>
                         </select>
@@ -60,37 +60,37 @@ class CouponAdmin
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_type">Jenis Potongan</label></th>
+                    <th scope="row"><label for="store_coupon_type">Jenis Potongan</label></th>
                     <td>
-                        <select id="vmp_coupon_type" name="vmp_coupon_type">
+                        <select id="store_coupon_type" name="store_coupon_type">
                             <option value="fixed" <?php selected($type, 'fixed'); ?>>Nominal Tetap</option>
                             <option value="percent" <?php selected($type, 'percent'); ?>>Persentase</option>
                         </select>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_amount">Nilai Potongan</label></th>
-                    <td><input type="number" min="0" step="0.01" class="regular-text" id="vmp_coupon_amount" name="vmp_coupon_amount" value="<?php echo esc_attr((string) $amount); ?>"></td>
+                    <th scope="row"><label for="store_coupon_amount">Nilai Potongan</label></th>
+                    <td><input type="number" min="0" step="0.01" class="regular-text" id="store_coupon_amount" name="store_coupon_amount" value="<?php echo esc_attr((string) $amount); ?>"></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_min_purchase">Minimal Belanja</label></th>
-                    <td><input type="number" min="0" step="0.01" class="regular-text" id="vmp_coupon_min_purchase" name="vmp_coupon_min_purchase" value="<?php echo esc_attr((string) $min_purchase); ?>"></td>
+                    <th scope="row"><label for="store_coupon_min_purchase">Minimal Belanja</label></th>
+                    <td><input type="number" min="0" step="0.01" class="regular-text" id="store_coupon_min_purchase" name="store_coupon_min_purchase" value="<?php echo esc_attr((string) $min_purchase); ?>"></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_usage_limit">Batas Penggunaan</label></th>
-                    <td><input type="number" min="0" step="1" class="regular-text" id="vmp_coupon_usage_limit" name="vmp_coupon_usage_limit" value="<?php echo esc_attr((string) $usage_limit); ?>"><p class="description">Kosongkan atau isi 0 jika tidak dibatasi.</p></td>
+                    <th scope="row"><label for="store_coupon_usage_limit">Batas Penggunaan</label></th>
+                    <td><input type="number" min="0" step="1" class="regular-text" id="store_coupon_usage_limit" name="store_coupon_usage_limit" value="<?php echo esc_attr((string) $usage_limit); ?>"><p class="description">Kosongkan atau isi 0 jika tidak dibatasi.</p></td>
                 </tr>
                 <tr>
                     <th scope="row">Penggunaan Saat Ini</th>
                     <td><?php echo esc_html((string) $usage_count); ?></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_starts_at">Mulai Berlaku</label></th>
-                    <td><input type="datetime-local" class="regular-text" id="vmp_coupon_starts_at" name="vmp_coupon_starts_at" value="<?php echo esc_attr($this->datetime_local_value($starts_at)); ?>"></td>
+                    <th scope="row"><label for="store_coupon_starts_at">Mulai Berlaku</label></th>
+                    <td><input type="datetime-local" class="regular-text" id="store_coupon_starts_at" name="store_coupon_starts_at" value="<?php echo esc_attr($this->datetime_local_value($starts_at)); ?>"></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="vmp_coupon_ends_at">Berakhir</label></th>
-                    <td><input type="datetime-local" class="regular-text" id="vmp_coupon_ends_at" name="vmp_coupon_ends_at" value="<?php echo esc_attr($this->datetime_local_value($ends_at)); ?>"></td>
+                    <th scope="row"><label for="store_coupon_ends_at">Berakhir</label></th>
+                    <td><input type="datetime-local" class="regular-text" id="store_coupon_ends_at" name="store_coupon_ends_at" value="<?php echo esc_attr($this->datetime_local_value($ends_at)); ?>"></td>
                 </tr>
             </tbody>
         </table>
@@ -106,32 +106,32 @@ class CouponAdmin
             return;
         }
 
-        $nonce = isset($_POST['vmp_coupon_meta_box_nonce']) ? (string) wp_unslash($_POST['vmp_coupon_meta_box_nonce']) : '';
-        if ($nonce === '' || !wp_verify_nonce($nonce, 'vmp_coupon_meta_box')) {
+        $nonce = isset($_POST['store_coupon_meta_box_nonce']) ? (string) wp_unslash($_POST['store_coupon_meta_box_nonce']) : '';
+        if ($nonce === '' || !wp_verify_nonce($nonce, 'store_coupon_meta_box')) {
             return;
         }
 
-        $scope = isset($_POST['vmp_coupon_scope']) && wp_unslash($_POST['vmp_coupon_scope']) === 'shipping' ? 'shipping' : 'product';
-        $type = isset($_POST['vmp_coupon_type']) && wp_unslash($_POST['vmp_coupon_type']) === 'percent' ? 'percent' : 'fixed';
-        update_post_meta($post_id, 'vmp_coupon_scope', $scope);
-        update_post_meta($post_id, 'vmp_coupon_type', $type);
-        update_post_meta($post_id, 'vmp_coupon_amount', max(0, (float) ($_POST['vmp_coupon_amount'] ?? 0)));
-        update_post_meta($post_id, 'vmp_coupon_min_purchase', max(0, (float) ($_POST['vmp_coupon_min_purchase'] ?? 0)));
-        update_post_meta($post_id, 'vmp_coupon_usage_limit', max(0, (int) ($_POST['vmp_coupon_usage_limit'] ?? 0)));
+        $scope = isset($_POST['store_coupon_scope']) && wp_unslash($_POST['store_coupon_scope']) === 'shipping' ? 'shipping' : 'product';
+        $type = isset($_POST['store_coupon_type']) && wp_unslash($_POST['store_coupon_type']) === 'percent' ? 'percent' : 'fixed';
+        update_post_meta($post_id, 'store_coupon_scope', $scope);
+        update_post_meta($post_id, 'store_coupon_type', $type);
+        update_post_meta($post_id, 'store_coupon_amount', max(0, (float) ($_POST['store_coupon_amount'] ?? 0)));
+        update_post_meta($post_id, 'store_coupon_min_purchase', max(0, (float) ($_POST['store_coupon_min_purchase'] ?? 0)));
+        update_post_meta($post_id, 'store_coupon_usage_limit', max(0, (int) ($_POST['store_coupon_usage_limit'] ?? 0)));
 
-        $starts_at = $this->normalize_datetime(isset($_POST['vmp_coupon_starts_at']) ? (string) wp_unslash($_POST['vmp_coupon_starts_at']) : '');
-        $ends_at = $this->normalize_datetime(isset($_POST['vmp_coupon_ends_at']) ? (string) wp_unslash($_POST['vmp_coupon_ends_at']) : '');
+        $starts_at = $this->normalize_datetime(isset($_POST['store_coupon_starts_at']) ? (string) wp_unslash($_POST['store_coupon_starts_at']) : '');
+        $ends_at = $this->normalize_datetime(isset($_POST['store_coupon_ends_at']) ? (string) wp_unslash($_POST['store_coupon_ends_at']) : '');
 
         if ($starts_at !== '') {
-            update_post_meta($post_id, 'vmp_coupon_starts_at', $starts_at);
+            update_post_meta($post_id, 'store_coupon_starts_at', $starts_at);
         } else {
-            delete_post_meta($post_id, 'vmp_coupon_starts_at');
+            delete_post_meta($post_id, 'store_coupon_starts_at');
         }
 
         if ($ends_at !== '') {
-            update_post_meta($post_id, 'vmp_coupon_ends_at', $ends_at);
+            update_post_meta($post_id, 'store_coupon_ends_at', $ends_at);
         } else {
-            delete_post_meta($post_id, 'vmp_coupon_ends_at');
+            delete_post_meta($post_id, 'store_coupon_ends_at');
         }
     }
 
@@ -153,32 +153,32 @@ class CouponAdmin
     public function column_content($column, $post_id)
     {
         if ($column === 'scope') {
-            echo esc_html((string) get_post_meta($post_id, 'vmp_coupon_scope', true) === 'shipping' ? 'Ongkir' : 'Produk');
+            echo esc_html((string) get_post_meta($post_id, 'store_coupon_scope', true) === 'shipping' ? 'Ongkir' : 'Produk');
             return;
         }
         if ($column === 'type') {
-            echo esc_html((string) get_post_meta($post_id, 'vmp_coupon_type', true) === 'percent' ? 'Persentase' : 'Nominal');
+            echo esc_html((string) get_post_meta($post_id, 'store_coupon_type', true) === 'percent' ? 'Persentase' : 'Nominal');
             return;
         }
         if ($column === 'amount') {
-            $type = (string) get_post_meta($post_id, 'vmp_coupon_type', true);
-            $amount = (float) get_post_meta($post_id, 'vmp_coupon_amount', true);
+            $type = (string) get_post_meta($post_id, 'store_coupon_type', true);
+            $amount = (float) get_post_meta($post_id, 'store_coupon_amount', true);
             echo esc_html($type === 'percent' ? number_format($amount, 0, ',', '.') . '%' : 'Rp ' . number_format($amount, 0, ',', '.'));
             return;
         }
         if ($column === 'min_purchase') {
-            echo esc_html('Rp ' . number_format((float) get_post_meta($post_id, 'vmp_coupon_min_purchase', true), 0, ',', '.'));
+            echo esc_html('Rp ' . number_format((float) get_post_meta($post_id, 'store_coupon_min_purchase', true), 0, ',', '.'));
             return;
         }
         if ($column === 'usage') {
-            $usage_count = (int) get_post_meta($post_id, 'vmp_coupon_usage_count', true);
-            $usage_limit = (int) get_post_meta($post_id, 'vmp_coupon_usage_limit', true);
-            echo esc_html($usage_count . ($usage_limit > 0 ? ' / ' . $usage_limit : ' / ∞'));
+            $usage_count = (int) get_post_meta($post_id, 'store_coupon_usage_count', true);
+            $usage_limit = (int) get_post_meta($post_id, 'store_coupon_usage_limit', true);
+            echo esc_html($usage_count . ($usage_limit > 0 ? ' / ' . $usage_limit : ' / âˆž'));
             return;
         }
         if ($column === 'period') {
-            $starts_at = (string) get_post_meta($post_id, 'vmp_coupon_starts_at', true);
-            $ends_at = (string) get_post_meta($post_id, 'vmp_coupon_ends_at', true);
+            $starts_at = (string) get_post_meta($post_id, 'store_coupon_starts_at', true);
+            $ends_at = (string) get_post_meta($post_id, 'store_coupon_ends_at', true);
             $text = trim(($starts_at !== '' ? mysql2date('d-m-Y H:i', $starts_at) : '-') . ' s/d ' . ($ends_at !== '' ? mysql2date('d-m-Y H:i', $ends_at) : '-'));
             echo esc_html($text);
         }
@@ -210,3 +210,4 @@ class CouponAdmin
         return wp_date('Y-m-d\TH:i', $timestamp);
     }
 }
+

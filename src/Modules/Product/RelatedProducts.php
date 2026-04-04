@@ -2,6 +2,8 @@
 
 namespace VelocityMarketplace\Modules\Product;
 
+use VelocityMarketplace\Support\Contract;
+
 class RelatedProducts
 {
     public static function items($product_id, $limit = 4)
@@ -9,24 +11,24 @@ class RelatedProducts
         $product_id = (int) $product_id;
         $limit = max(1, min(12, (int) $limit));
 
-        if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+        if ($product_id <= 0 || !Contract::is_product($product_id)) {
             return [];
         }
 
-        $term_ids = wp_get_post_terms($product_id, 'vmp_product_cat', ['fields' => 'ids']);
+        $term_ids = wp_get_post_terms($product_id, Contract::PRODUCT_TAXONOMY, ['fields' => 'ids']);
         if (is_wp_error($term_ids) || empty($term_ids)) {
             return [];
         }
 
         $query = new \WP_Query([
-            'post_type' => 'vmp_product',
+            'post_type' => Contract::product_post_types(),
             'post_status' => 'publish',
             'posts_per_page' => $limit,
             'post__not_in' => [$product_id],
             'ignore_sticky_posts' => true,
             'tax_query' => [
                 [
-                    'taxonomy' => 'vmp_product_cat',
+                    'taxonomy' => Contract::PRODUCT_TAXONOMY,
                     'field' => 'term_id',
                     'terms' => array_map('intval', (array) $term_ids),
                 ],
@@ -55,3 +57,4 @@ class RelatedProducts
         return $items;
     }
 }
+

@@ -32,7 +32,7 @@ class OrderActionHandler extends BaseActionHandler
             ]);
         }
 
-        if (get_post_type($order_id) !== 'vmp_order') {
+        if (get_post_type($order_id) !== 'store_order') {
             $this->redirect_with([
                 'vmp_error' => 'Pesanan tidak ditemukan.',
                 'tab' => $redirect_tab,
@@ -129,7 +129,7 @@ class OrderActionHandler extends BaseActionHandler
             $this->redirect_with(['vmp_error' => 'Aksi order tidak valid.', 'tab' => 'seller_home']);
         }
 
-        if (get_post_type($order_id) !== 'vmp_order') {
+        if (get_post_type($order_id) !== 'store_order') {
             $this->redirect_with(['vmp_error' => 'Order tidak ditemukan.', 'tab' => 'seller_home']);
         }
 
@@ -307,3 +307,4 @@ class OrderActionHandler extends BaseActionHandler
         ]);
     }
 }
+

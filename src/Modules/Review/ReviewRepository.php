@@ -3,6 +3,7 @@
 namespace VelocityMarketplace\Modules\Review;
 
 use VelocityMarketplace\Modules\Order\OrderData;
+use VelocityMarketplace\Support\Contract;
 
 class ReviewRepository
 {
@@ -62,7 +63,7 @@ class ReviewRepository
             return false;
         }
 
-        if (get_post_type($order_id) !== 'vmp_order') {
+        if (!Contract::is_order($order_id)) {
             return false;
         }
 

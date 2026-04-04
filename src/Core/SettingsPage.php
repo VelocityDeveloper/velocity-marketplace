@@ -18,7 +18,7 @@ class SettingsPage
     public function add_menu()
     {
         $this->page_hook = add_submenu_page(
-            'edit.php?post_type=vmp_product',
+            'edit.php?post_type=store_product',
             __('Pengaturan Marketplace', 'velocity-marketplace'),
             __('Settings', 'velocity-marketplace'),
             'manage_options',
@@ -497,3 +497,4 @@ class SettingsPage
         <?php
     }
 }
+

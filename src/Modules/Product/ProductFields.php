@@ -3,7 +3,7 @@
 namespace VelocityMarketplace\Modules\Product;
 
 /**
- * Registry schema field meta untuk CPT `vmp_product`.
+ * Registry schema field meta untuk CPT produk canonical perusahaan.
  *
  * Struktur data yang dipakai file ini:
  * - Section:
@@ -46,10 +46,7 @@ namespace VelocityMarketplace\Modules\Product;
  * - `id` field akan dipakai langsung sebagai post meta key.
  * - Jika field `type=file` dan `multiple=true`, value disimpan sebagai array ID attachment.
  * - Jika field butuh opsi tetap, gunakan `options` dengan key yang eksplisit.
- * - Field galeri produk memakai meta key `gallery_ids`.
- * - Field opsi varian memakai meta key `variant_name` dan `variant_options`.
- * - Field penyesuaian harga memakai meta key `price_adjustment_name` dan
- *   `price_adjustment_options`.
+ * - Field inti produk mengikuti canonical contract `_store_*`.
  * - Gambar utama produk tidak didefinisikan di schema ini karena memakai featured image
  *   bawaan WordPress (`_thumbnail_id`), bukan post meta custom schema produk.
  */
@@ -76,7 +73,7 @@ class ProductFields
                 'fields' => [
                     [
                         'name' => 'Galeri Produk',
-                        'id' => 'gallery_ids',
+                        'id' => '_store_gallery_ids',
                         'type' => 'file',
                         'desc' => 'Pilih beberapa gambar dari media library untuk galeri produk.',
                         'contexts' => ['frontend', 'admin'],
@@ -91,28 +88,39 @@ class ProductFields
                 'title' => 'Harga & Inventory',
                 'fields' => [
                     [
+                        'name' => 'Tipe Produk',
+                        'id' => '_store_product_type',
+                        'type' => 'select',
+                        'desc' => 'Produk fisik atau digital.',
+                        'default' => 'physical',
+                        'options' => [
+                            'physical' => 'Produk Fisik',
+                            'digital' => 'Produk Digital',
+                        ],
+                    ],
+                    [
                         'name' => 'SKU',
-                        'id' => 'sku',
+                        'id' => '_store_sku',
                         'type' => 'text',
                         'placeholder' => 'SKU produk',
                         'desc' => 'Kode unik produk.',
                     ],
                     [
                         'name' => 'Label Produk',
-                        'id' => 'label',
+                        'id' => '_store_label',
                         'type' => 'select',
                         'placeholder' => '',
                         'desc' => 'Label badge pada kartu produk.',
                         'options' => [
                             '' => '-',
-                            'new' => 'New',
-                            'limited' => 'Terbatas',
-                            'best' => 'Best Seller',
+                            'label-new' => 'New',
+                            'label-limited' => 'Terbatas',
+                            'label-best' => 'Best Seller',
                         ],
                     ],
                     [
                         'name' => 'Harga Regular',
-                        'id' => 'price',
+                        'id' => '_store_price',
                         'type' => 'number',
                         'placeholder' => '0',
                         'desc' => 'Harga utama produk.',
@@ -121,7 +129,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Harga Promo',
-                        'id' => 'sale_price',
+                        'id' => '_store_sale_price',
                         'type' => 'number',
                         'placeholder' => '0',
                         'desc' => 'Kosongkan jika tidak ada promo.',
@@ -130,14 +138,14 @@ class ProductFields
                     ],
                     [
                         'name' => 'Promo Sampai',
-                        'id' => 'sale_until',
+                        'id' => '_store_flashsale_until',
                         'type' => 'date',
                         'placeholder' => '',
                         'desc' => 'Tanggal akhir harga promo.',
                     ],
                     [
                         'name' => 'Stok',
-                        'id' => 'stock',
+                        'id' => '_store_stock',
                         'type' => 'number',
                         'placeholder' => '0',
                         'desc' => 'Kosongkan jika stok tidak dibatasi.',
@@ -146,7 +154,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Berat (kg)',
-                        'id' => 'weight',
+                        'id' => '_store_weight_kg',
                         'type' => 'number',
                         'placeholder' => '0',
                         'desc' => 'Wajib diisi untuk perhitungan ongkir. Gunakan angka lebih dari 0.',
@@ -156,7 +164,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Minimal Order',
-                        'id' => 'min_order',
+                        'id' => '_store_min_order',
                         'type' => 'number',
                         'placeholder' => '1',
                         'desc' => 'Jumlah minimum pembelian.',
@@ -171,7 +179,7 @@ class ProductFields
                 'fields' => [
                     [
                         'name' => 'Nama Opsi Varian',
-                        'id' => 'variant_name',
+                        'id' => '_store_option_name',
                         'type' => 'text',
                         'placeholder' => 'Warna',
                         'desc' => 'Nama pilihan yang tidak mengubah harga, misalnya Warna atau Motif.',
@@ -179,7 +187,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Pilihan Varian',
-                        'id' => 'variant_options',
+                        'id' => '_store_options',
                         'type' => 'textarea',
                         'placeholder' => 'Merah, Biru, Hijau',
                         'desc' => 'Pisahkan dengan koma. Pilihan ini tidak mengubah harga produk.',
@@ -188,7 +196,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Nama Opsi Harga',
-                        'id' => 'price_adjustment_name',
+                        'id' => '_store_option2_name',
                         'type' => 'text',
                         'placeholder' => 'Ukuran',
                         'desc' => 'Nama pilihan yang dapat menambah harga dari harga dasar produk.',
@@ -196,7 +204,7 @@ class ProductFields
                     ],
                     [
                         'name' => 'Pilihan Harga',
-                        'id' => 'price_adjustment_options',
+                        'id' => '_store_advanced_options',
                         'type' => 'textarea',
                         'placeholder' => "Small=0\nMedium=10000\nLarge=20000",
                         'desc' => '1 baris = label=tambahan_harga. Gunakan 0 jika tidak ada tambahan harga.',
@@ -264,11 +272,29 @@ class ProductFields
                         ],
                     ],
                 ];
+            } elseif (in_array($meta_key, ['_store_options', '_store_advanced_options'], true)) {
+                $show_in_rest = [
+                    'schema' => [
+                        'type' => 'array',
+                    ],
+                ];
             }
+
+            register_post_meta('store_product', $meta_key, [
+                'single' => true,
+                'show_in_rest' => $show_in_rest,
+                'type' => self::register_type($field),
+                'sanitize_callback' => function ($value) use ($field) {
+                    return self::sanitize_value($field, $value);
+                },
+                'auth_callback' => function () {
+                    return current_user_can('edit_posts');
+                },
+            ]);
 
             register_post_meta('vmp_product', $meta_key, [
                 'single' => true,
-                'show_in_rest' => $show_in_rest,
+                'show_in_rest' => false,
                 'type' => self::register_type($field),
                 'sanitize_callback' => function ($value) use ($field) {
                     return self::sanitize_value($field, $value);
@@ -301,6 +327,30 @@ class ProductFields
 
         if (($value === '' || $value === null) && $default !== '') {
             return (string) $default;
+        }
+
+        if ($meta_key === '_store_options') {
+            if (is_array($value)) {
+                return implode(', ', array_values(array_filter(array_map('trim', array_map('strval', $value)))));
+            }
+        }
+
+        if ($meta_key === '_store_advanced_options') {
+            if (is_array($value)) {
+                $rows = [];
+                foreach ($value as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $label = isset($row['label']) ? trim((string) $row['label']) : '';
+                    if ($label === '') {
+                        continue;
+                    }
+                    $price = isset($row['price']) && is_numeric($row['price']) ? (float) $row['price'] : 0;
+                    $rows[] = $label . '=' . $price;
+                }
+                return implode("\n", $rows);
+            }
         }
 
         if ($type === 'checkbox') {
@@ -524,6 +574,38 @@ class ProductFields
         }
 
         if ($type === 'textarea' || $type === 'editor') {
+            $meta_key = isset($field['id']) ? (string) $field['id'] : '';
+            if ($meta_key === '_store_options') {
+                $parts = array_map('trim', explode(',', (string) $raw));
+                return array_values(array_filter($parts, static function ($item) {
+                    return $item !== '';
+                }));
+            }
+
+            if ($meta_key === '_store_advanced_options') {
+                $rows = preg_split('/\r\n|\r|\n/', (string) $raw);
+                $items = [];
+                foreach ((array) $rows as $row) {
+                    $line = trim((string) $row);
+                    if ($line === '') {
+                        continue;
+                    }
+
+                    $parts = strpos($line, '=') !== false ? array_map('trim', explode('=', $line, 2)) : [$line, 0];
+                    $label = isset($parts[0]) ? (string) $parts[0] : '';
+                    if ($label === '') {
+                        continue;
+                    }
+
+                    $items[] = [
+                        'label' => $label,
+                        'price' => isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : 0.0,
+                    ];
+                }
+
+                return $items;
+            }
+
             return trim((string) wp_kses_post($raw));
         }
 
@@ -585,6 +667,9 @@ class ProductFields
         }
         if ($type === 'checkbox') {
             return 'boolean';
+        }
+        if (in_array((string) ($field['id'] ?? ''), ['_store_options', '_store_advanced_options'], true)) {
+            return 'array';
         }
         if ($type === 'file' && !empty($field['multiple'])) {
             return 'array';
