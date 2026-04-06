@@ -3,11 +3,13 @@ $captcha_html = \VelocityMarketplace\Modules\Captcha\CaptchaBridge::render('#vmp
 $active_payment_methods = \VelocityMarketplace\Support\Settings::payment_methods();
 $payment_labels = [
     'bank' => __('Transfer Bank', 'velocity-marketplace'),
+    'qris' => 'QRIS',
     'duitku' => 'Duitku',
     'paypal' => 'PayPal',
     'cod' => 'COD',
 ];
 $bank_accounts = \VelocityMarketplace\Support\Settings::bank_accounts();
+$qris = \VelocityMarketplace\Support\Settings::qris_details();
 ?>
 <div class="container py-4 vmp-wrap" x-data="vmpCheckout()" x-init="init()">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -108,6 +110,21 @@ $bank_accounts = \VelocityMarketplace\Support\Settings::bank_accounts();
                                         </div>
                                     </div>
                                 <?php endif; ?>
+                            </div>
+                            <div class="col-12" x-show="form.payment_method === 'qris'">
+                                <div class="border rounded p-3 bg-light-subtle">
+                                    <div class="fw-semibold mb-2"><?php echo esc_html__('Pembayaran QRIS', 'velocity-marketplace'); ?></div>
+                                    <div class="small text-muted mb-3"><?php echo esc_html($qris['label']); ?></div>
+                                    <?php if (!empty($qris['image_url'])) : ?>
+                                        <div class="text-center">
+                                            <img src="<?php echo esc_url($qris['image_url']); ?>" alt="<?php echo esc_attr__('QRIS', 'velocity-marketplace'); ?>" class="img-fluid rounded border" style="max-width:280px;">
+                                        </div>
+                                    <?php else : ?>
+                                        <div class="alert alert-warning mb-0">
+                                            <?php echo esc_html__('QRIS belum dikonfigurasi di Pengaturan Toko VD Store.', 'velocity-marketplace'); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <div class="col-12" x-show="shippingContextMessage">
                                 <div class="alert alert-warning py-2 mb-0" x-text="shippingContextMessage"></div>

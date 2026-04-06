@@ -384,64 +384,24 @@ class ShippingController
 
         $repo = new CartRepository();
         $cart = $repo->get_cart_data();
-        $items = isset($cart['items']) && is_array($cart['items']) ? $cart['items'] : [];
-        if (empty($items)) {
+        $groups = isset($cart['seller_groups']) && is_array($cart['seller_groups']) ? $cart['seller_groups'] : [];
+        if (empty($groups)) {
             return [
                 'success' => false,
                 'message' => 'Keranjang kosong.',
             ];
         }
 
-        $groups = [];
-        foreach ($items as $item) {
-            $seller_id = isset($item['penjual']) ? (int) $item['penjual'] : 0;
+        $labels = Settings::courier_labels();
+        $resolved_groups = [];
+        foreach ($groups as $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+            $seller_id = isset($group['seller_id']) ? (int) $group['seller_id'] : 0;
             if ($seller_id <= 0) {
                 continue;
             }
-
-            $item_weight_kg = isset($item['weight']) ? (float) $item['weight'] : 0;
-            $qty = isset($item['qty']) ? (int) $item['qty'] : 0;
-            $grams = (int) round(max(0, $item_weight_kg) * 1000);
-            if ($grams < 1) {
-                $grams = 1;
-            }
-            $line_grams = $grams * max(1, $qty);
-            $subtotal = isset($item['subtotal']) ? (float) $item['subtotal'] : 0;
-
-            if (!isset($groups[$seller_id])) {
-                $groups[$seller_id] = [
-                    'seller_id' => $seller_id,
-                    'seller_name' => '',
-                    'origin' => [],
-                    'couriers' => [],
-                    'weight_grams' => 0,
-                    'subtotal' => 0,
-                    'items_count' => 0,
-                    'items' => [],
-                ];
-            }
-
-            $groups[$seller_id]['weight_grams'] += $line_grams;
-            $groups[$seller_id]['subtotal'] += $subtotal;
-            $groups[$seller_id]['items_count'] += $qty;
-            $groups[$seller_id]['items'][] = [
-                'product_id' => isset($item['id']) ? (int) $item['id'] : 0,
-                'title' => isset($item['title']) ? (string) $item['title'] : '',
-                'qty' => $qty,
-                'subtotal' => $subtotal,
-            ];
-        }
-
-        if (empty($groups)) {
-            return [
-                'success' => false,
-                'message' => 'Keranjang tidak valid.',
-            ];
-        }
-
-        $labels = Settings::courier_labels();
-        $resolved_groups = [];
-        foreach ($groups as $seller_id => $group) {
             $origin = [
                 'province_id' => (string) get_user_meta($seller_id, 'vmp_store_province_id', true),
                 'province_name' => (string) get_user_meta($seller_id, 'vmp_store_province', true),
@@ -503,7 +463,10 @@ class ShippingController
             $group['cod_enabled'] = $cod_enabled;
             $group['cod_city_ids'] = array_values(array_filter(array_map('strval', $cod_city_ids)));
             $group['cod_city_names'] = array_values(array_filter(array_map('strval', $cod_city_names)));
-            $group['weight_grams'] = max(1, (int) $group['weight_grams']);
+            $group['weight_grams'] = max(1, (int) ($group['weight_grams'] ?? 0));
+            $group['subtotal'] = (float) ($group['subtotal'] ?? 0);
+            $group['items_count'] = (int) ($group['items_count'] ?? 0);
+            $group['item_keys'] = isset($group['item_keys']) && is_array($group['item_keys']) ? array_values(array_filter(array_map('strval', $group['item_keys']))) : [];
             $resolved_groups[] = $group;
         }
 

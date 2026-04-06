@@ -4,7 +4,7 @@ use VelocityMarketplace\Modules\Review\StarSellerService;
 use VelocityMarketplace\Support\Settings;
 
 $product_id = isset($product_id) ? (int) $product_id : 0;
-if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+if ($product_id <= 0 || get_post_type($product_id) !== 'store_product') {
     return;
 }
 

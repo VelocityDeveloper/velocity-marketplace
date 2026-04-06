@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: Velocity Marketplace
- * Description: Plugin Marketplace oleh Velocity Developer.
+ * Plugin Name: VD Marketplace
+ * Description: Addon marketplace untuk VD Store.
  * Version: 1.0.0
  * Author: Velocity Developer
  * Author URI: https://velocitydeveloper.com/
@@ -18,6 +18,28 @@ define('VMP_URL', plugin_dir_url(__FILE__));
 define('VMP_SETTINGS_OPTION', 'vmp_settings');
 define('VMP_PAGES_OPTION', 'vmp_pages');
 define('VMP_DB_VERSION_OPTION', 'vmp_db_version');
+
+function vmp_has_vd_store_dependency()
+{
+    return defined('WP_STORE_VERSION')
+        || defined('WP_STORE_PATH')
+        || function_exists('wp_store_init')
+        || class_exists('\WpStore\Core\Plugin');
+}
+
+function vmp_dependency_error_message()
+{
+    return __('VD Marketplace membutuhkan plugin VD Store yang aktif. Aktifkan VD Store terlebih dahulu karena VD Marketplace sekarang hanya berjalan sebagai addon marketplace di atas core commerce VD Store.', 'velocity-marketplace');
+}
+
+function vmp_render_dependency_notice()
+{
+    if (!current_user_can('activate_plugins')) {
+        return;
+    }
+
+    echo '<div class="notice notice-error"><p>' . esc_html(vmp_dependency_error_message()) . '</p></div>';
+}
 
 spl_autoload_register(function ($class) {
     $prefix = 'VelocityMarketplace\\';
@@ -38,31 +60,33 @@ spl_autoload_register(function ($class) {
 
 function vmp_init_plugin()
 {
+    if (!vmp_has_vd_store_dependency()) {
+        add_action('admin_notices', 'vmp_render_dependency_notice');
+        add_action('network_admin_notices', 'vmp_render_dependency_notice');
+        return;
+    }
+
     $plugin = new \VelocityMarketplace\Core\Plugin();
     $plugin->run();
 }
 add_action('plugins_loaded', 'vmp_init_plugin');
 
-function vmp_register_wp_store_function_aliases()
-{
-    if (defined('WP_STORE_VERSION') || function_exists('wp_store_init')) {
-        return;
-    }
-
-    $compat_file = VMP_PATH . 'compat/wp-store-functions.php';
-    if (file_exists($compat_file)) {
-        require_once $compat_file;
-    }
-}
-add_action('plugins_loaded', 'vmp_register_wp_store_function_aliases', 20);
-
 register_activation_hook(__FILE__, function () {
+    if (!vmp_has_vd_store_dependency()) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        deactivate_plugins(plugin_basename(__FILE__));
+
+        wp_die(
+            esc_html(vmp_dependency_error_message()),
+            esc_html__('VD Marketplace membutuhkan VD Store', 'velocity-marketplace'),
+            [
+                'back_link' => true,
+            ]
+        );
+    }
+
     $upgrade = new \VelocityMarketplace\Core\Upgrade();
     $upgrade->activate();
-
-    $post_types = new \VelocityMarketplace\Core\PostTypes();
-    $post_types->register_product_type();
-    $post_types->register_order_type();
 
     flush_rewrite_rules();
 });

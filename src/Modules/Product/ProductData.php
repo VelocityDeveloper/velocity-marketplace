@@ -15,13 +15,25 @@ class ProductData
             return null;
         }
 
-        $price = self::resolve_price($post_id);
-        $sale_price = self::resolve_sale_price($post_id);
-        $variant_name = ProductMeta::get_text($post_id, 'variant_name', 'Pilihan Varian');
-        $variant_options = self::variant_options($post_id);
-        $price_adjustment_name = ProductMeta::get_text($post_id, 'price_adjustment_name', 'Pilihan Harga');
-        $price_adjustment_options = self::price_adjustment_options($post_id);
-        $gallery_ids = self::gallery_ids($post_id);
+        $core_product = \WpStore\Domain\Product\ProductData::map_post($post_id);
+
+        $price = $core_product !== null && array_key_exists('price', $core_product) ? $core_product['price'] : self::resolve_price($post_id);
+        $sale_price = $core_product !== null && array_key_exists('sale_price', $core_product) ? $core_product['sale_price'] : self::resolve_sale_price($post_id);
+        $variant_name = $core_product !== null && array_key_exists('variant_name', $core_product)
+            ? (string) $core_product['variant_name']
+            : ProductMeta::get_text($post_id, 'variant_name', 'Pilihan Varian');
+        $variant_options = $core_product !== null && array_key_exists('variant_options', $core_product)
+            ? (array) $core_product['variant_options']
+            : self::variant_options($post_id);
+        $price_adjustment_name = $core_product !== null && array_key_exists('price_adjustment_name', $core_product)
+            ? (string) $core_product['price_adjustment_name']
+            : ProductMeta::get_text($post_id, 'price_adjustment_name', 'Pilihan Harga');
+        $price_adjustment_options = $core_product !== null && array_key_exists('price_adjustment_options', $core_product)
+            ? self::normalize_core_price_adjustments((array) $core_product['price_adjustment_options'])
+            : self::price_adjustment_options($post_id);
+        $gallery_ids = $core_product !== null && array_key_exists('gallery_ids', $core_product)
+            ? array_values(array_filter(array_map('absint', (array) $core_product['gallery_ids'])))
+            : self::gallery_ids($post_id);
         $image = self::image_url($post_id, 'large', $gallery_ids);
         $review_summary = (new ReviewRepository())->product_summary($post_id);
         $author_id = (int) get_post_field('post_author', $post_id);
@@ -39,23 +51,23 @@ class ProductData
 
         return [
             'id' => $post_id,
-            'title' => get_the_title($post_id),
-            'link' => get_permalink($post_id),
+            'title' => $core_product !== null && array_key_exists('title', $core_product) ? (string) $core_product['title'] : get_the_title($post_id),
+            'link' => $core_product !== null && array_key_exists('link', $core_product) ? (string) $core_product['link'] : get_permalink($post_id),
             'image' => $image,
             'gallery_ids' => $gallery_ids,
             'gallery' => self::gallery_urls($gallery_ids),
-            'excerpt' => get_the_excerpt($post_id),
+            'excerpt' => $core_product !== null && array_key_exists('excerpt', $core_product) ? (string) $core_product['excerpt'] : get_the_excerpt($post_id),
             'author_id' => $author_id,
             'seller_city' => $seller_city,
             'seller_last_active_at' => $seller_last_active_at,
             'seller_last_active_text' => $seller_last_active_text,
             'price' => $price,
             'sale_price' => $sale_price,
-            'sku' => ProductMeta::get_text($post_id, 'sku'),
-            'stock' => self::meta_number($post_id, 'stock', null),
-            'min_order' => max(1, (int) self::meta_number($post_id, 'min_order', 1)),
-            'weight' => self::meta_number($post_id, 'weight', 0),
-            'label' => ProductMeta::get_text($post_id, 'label'),
+            'sku' => $core_product !== null && array_key_exists('sku', $core_product) ? (string) $core_product['sku'] : ProductMeta::get_text($post_id, 'sku'),
+            'stock' => $core_product !== null && array_key_exists('stock', $core_product) ? $core_product['stock'] : self::meta_number($post_id, 'stock', null),
+            'min_order' => $core_product !== null && array_key_exists('min_order', $core_product) ? max(1, (int) $core_product['min_order']) : max(1, (int) self::meta_number($post_id, 'min_order', 1)),
+            'weight' => $core_product !== null && array_key_exists('weight_kg', $core_product) ? (float) $core_product['weight_kg'] : self::meta_number($post_id, 'weight', 0),
+            'label' => $core_product !== null && array_key_exists('label', $core_product) ? ProductMeta::normalize_label((string) $core_product['label']) : ProductMeta::get_text($post_id, 'label'),
             'is_premium' => (int) self::meta_number($post_id, 'is_premium', 0) === 1,
             'variant_name' => $variant_name,
             'variant_options' => $variant_options,
@@ -73,6 +85,35 @@ class ProductData
                 : '',
             'sold_count' => max(0, (int) self::meta_number($post_id, 'vmp_sold_count', 0)),
         ];
+    }
+
+    private static function normalize_core_price_adjustments($items = [])
+    {
+        $normalized = [];
+        foreach ((array) $items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $label = isset($item['label']) ? trim((string) $item['label']) : '';
+            if ($label === '') {
+                continue;
+            }
+
+            $amount = 0.0;
+            if (isset($item['amount']) && is_numeric($item['amount'])) {
+                $amount = (float) $item['amount'];
+            } elseif (isset($item['price']) && is_numeric($item['price'])) {
+                $amount = (float) $item['price'];
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'amount' => $amount,
+            ];
+        }
+
+        return $normalized;
     }
 
     public static function resolve_price($post_id)

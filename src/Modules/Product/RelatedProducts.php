@@ -15,44 +15,23 @@ class RelatedProducts
             return [];
         }
 
-        $term_ids = wp_get_post_terms($product_id, Contract::PRODUCT_TAXONOMY, ['fields' => 'ids']);
-        if (is_wp_error($term_ids) || empty($term_ids)) {
-            return [];
-        }
-
-        $query = new \WP_Query([
-            'post_type' => Contract::product_post_types(),
-            'post_status' => 'publish',
-            'posts_per_page' => $limit,
-            'post__not_in' => [$product_id],
-            'ignore_sticky_posts' => true,
-            'tax_query' => [
-                [
-                    'taxonomy' => Contract::PRODUCT_TAXONOMY,
-                    'field' => 'term_id',
-                    'terms' => array_map('intval', (array) $term_ids),
-                ],
-            ],
-            'meta_key' => 'vmp_sold_count',
-            'orderby' => [
-                'meta_value_num' => 'DESC',
-                'date' => 'DESC',
-            ],
-        ]);
-
-        if (!$query->have_posts()) {
-            return [];
-        }
-
         $items = [];
-        while ($query->have_posts()) {
-            $query->the_post();
-            $item = ProductData::map_post(get_the_ID());
+        foreach (\WpStore\Domain\Product\RelatedProducts::ids($product_id, $limit) as $related_id) {
+            $item = ProductData::map_post($related_id);
             if ($item) {
                 $items[] = $item;
             }
         }
-        wp_reset_postdata();
+
+        usort($items, static function ($left, $right) {
+            $left_sold = (int) ($left['sold_count'] ?? 0);
+            $right_sold = (int) ($right['sold_count'] ?? 0);
+            if ($left_sold !== $right_sold) {
+                return $right_sold <=> $left_sold;
+            }
+
+            return ((int) ($right['id'] ?? 0)) <=> ((int) ($left['id'] ?? 0));
+        });
 
         return $items;
     }

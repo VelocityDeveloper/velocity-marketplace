@@ -14,7 +14,7 @@ if (!$item) {
     return;
 }
 
-$categories = get_the_terms($product_id, 'vmp_product_cat');
+$categories = get_the_terms($product_id, 'store_product_cat');
 $seller_id = (int) get_post_field('post_author', $product_id);
 $rating_average = isset($item['rating_average']) ? (float) $item['rating_average'] : 0.0;
 $review_count = isset($item['review_count']) ? (int) $item['review_count'] : 0;
@@ -55,7 +55,7 @@ get_header();
                     <span><?php echo esc_html(sprintf(__('%d terjual', 'velocity-marketplace'), (int) $item['sold_count'])); ?></span>
                 <?php endif; ?>
             </div>
-            <div class="mb-3"><?php echo do_shortcode('[vmp_price id="' . (int) $item['id'] . '" class="h5"]'); ?></div>
+            <div class="mb-3"><?php echo do_shortcode('[wp_store_price id="' . (int) $item['id'] . '"]'); ?></div>
 
             <div class="row g-2 small mb-3">
                 <div class="col-sm-6"><strong><?php echo esc_html__('SKU:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($item['sku'] !== '' ? $item['sku'] : '-'); ?></div>
@@ -134,7 +134,7 @@ get_header();
     </div>
 
     <div class="mt-4">
-        <?php echo do_shortcode('[vmp_related_products limit="4"]'); ?>
+        <?php echo do_shortcode('[wp_store_related per_page="4"]'); ?>
     </div>
 
 </div>

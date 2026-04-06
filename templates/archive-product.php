@@ -1,25 +1,19 @@
 <?php
 use VelocityMarketplace\Modules\Product\ProductData;
 use VelocityMarketplace\Modules\Product\ProductQuery;
+use VelocityMarketplace\Support\Settings;
 
 $product_query = new ProductQuery();
 $filters = $product_query->normalize_filters($_GET);
 $categories = get_terms([
-    'taxonomy' => 'vmp_product_cat',
+    'taxonomy' => 'store_product_cat',
     'hide_empty' => false,
 ]);
 $label_options = $product_query->label_options();
 $sort_options = $product_query->sort_options();
 $active_filter_chips = $product_query->describe_active_filters($filters);
-$archive_url = get_post_type_archive_link('vmp_product');
-$pages = get_option(VMP_PAGES_OPTION, []);
-$catalog_url = site_url('/catalog/');
-if (is_array($pages) && !empty($pages['katalog'])) {
-    $maybe_catalog_url = get_permalink((int) $pages['katalog']);
-    if ($maybe_catalog_url) {
-        $catalog_url = $maybe_catalog_url;
-    }
-}
+$archive_url = get_post_type_archive_link('store_product');
+$catalog_url = Settings::catalog_url();
 $current_args = array_filter([
     'search' => (string) ($filters['search'] ?? ''),
     'product_cat' => (int) ($filters['cat'] ?? 0),
@@ -90,46 +84,42 @@ get_header();
 
             <?php if (have_posts()) : ?>
                 <div class="row g-3">
-                    <?php while (have_posts()) : the_post(); ?>
-                        <?php $item = ProductData::map_post(get_the_ID()); ?>
-                        <?php if (!$item) : continue; endif; ?>
-                        <div class="col-6 col-md-4 col-xxl-3">
-                            <div class="card h-100 shadow-sm border-0 vmp-product-card">
-                                <?php echo do_shortcode('[vmp_thumbnail id="' . (int) $item['id'] . '"]'); ?>
-                                <div class="card-body d-flex flex-column">
-                                    <h2 class="card-title h6 mb-1"><a href="<?php echo esc_url($item['link']); ?>" class="text-decoration-none text-dark"><?php echo esc_html($item['title']); ?></a></h2>
-                                    <?php if (!empty($item['label'])) : ?>
-                                        <div class="small text-muted mb-2"><?php echo esc_html($item['label']); ?></div>
-                                    <?php endif; ?>
-                                    <?php echo do_shortcode('[vmp_price id="' . (int) $item['id'] . '"]'); ?>
-                                    <?php if (!empty($item['seller_city'])) : ?>
-                                        <div class="small text-muted mb-1"><?php echo esc_html((string) $item['seller_city']); ?></div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($item['sold_count'])) : ?>
-                                        <div class="small text-muted mb-1"><?php echo esc_html(sprintf(__('%d terjual', 'velocity-marketplace'), (int) $item['sold_count'])); ?></div>
-                                    <?php endif; ?>
-                                    <div class="small text-muted mb-3">
-                                        <?php
-                                        if ($item['stock'] === null || $item['stock'] === '') {
-                                            echo esc_html__('Stok tidak terbatas', 'velocity-marketplace');
-                                        } else {
-                                            echo esc_html((float) $item['stock'] > 0 ? sprintf(__('Stok: %d', 'velocity-marketplace'), (int) $item['stock']) : __('Stok habis', 'velocity-marketplace'));
-                                        }
-                                        ?>
-                                    </div>
-                                    <?php if (!empty($item['rating_html'])) : ?>
-                                        <div class="mb-3"><?php echo $item['rating_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
-                                    <?php else : ?>
-                                        <div class="small text-muted mb-3"><?php echo esc_html__('Belum ada ulasan', 'velocity-marketplace'); ?></div>
-                                    <?php endif; ?>
-                                    <div class="mt-auto d-flex gap-2">
-                                        <?php echo do_shortcode('[vmp_add_to_cart id="' . (int) $item['id'] . '" class="btn btn-sm btn-dark flex-grow-1"]'); ?>
-                                        <?php echo do_shortcode('[vmp_add_to_wishlist id="' . (int) $item['id'] . '" class="btn btn-sm btn-outline-secondary vmp-wishlist-button"]'); ?>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endwhile; ?>
+<?php while (have_posts()) : the_post(); ?>
+    <?php $item = ProductData::map_post(get_the_ID()); ?>
+    <?php if (!$item) : continue; endif; ?>
+    <?php
+    $card_extra_html = '';
+    if (!empty($item['seller_city'])) {
+        $card_extra_html .= '<div class="small text-muted mb-1">' . esc_html((string) $item['seller_city']) . '</div>';
+    }
+    if (!empty($item['sold_count'])) {
+        $card_extra_html .= '<div class="small text-muted mb-1">' . esc_html(sprintf(__('%d terjual', 'velocity-marketplace'), (int) $item['sold_count'])) . '</div>';
+    }
+    if (!empty($item['rating_html'])) {
+        $card_extra_html .= '<div class="mb-1">' . $item['rating_html'] . '</div>';
+    } else {
+        $card_extra_html .= '<div class="small text-muted mb-1">' . esc_html__('Belum ada ulasan', 'velocity-marketplace') . '</div>';
+    }
+    ?>
+    <div class="col-6 col-md-4 col-xxl-3">
+        <?php
+        echo \WpStore\Frontend\Template::render('components/product-card', [
+            'item' => [
+                'id' => (int) $item['id'],
+                'title' => (string) $item['title'],
+                'link' => (string) $item['link'],
+                'image' => (string) ($item['image'] ?? ''),
+                'price' => $item['price'] ?? null,
+                'stock' => $item['stock'] ?? null,
+            ],
+            'currency' => Settings::currency_symbol(),
+            'view_label' => __('Detail', 'velocity-marketplace'),
+            'extra_html' => $card_extra_html,
+            'card_class' => 'vmp-product-card',
+        ]); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        ?>
+    </div>
+<?php endwhile; ?>
                 </div>
 
                 <div class="mt-4">

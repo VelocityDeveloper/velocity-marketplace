@@ -5,7 +5,7 @@ use VelocityMarketplace\Modules\Review\ReviewRepository;
 $product_id = isset($product_id) ? (int) $product_id : 0;
 $limit = isset($limit) ? max(1, min(100, (int) $limit)) : 20;
 
-if ($product_id <= 0 || get_post_type($product_id) !== 'vmp_product') {
+if ($product_id <= 0 || get_post_type($product_id) !== 'store_product') {
     return;
 }
 

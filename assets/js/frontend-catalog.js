@@ -9,7 +9,6 @@
     cfg,
     api,
     request,
-    money,
     placeholder,
     wishlistIconSvg,
     fetchShippingList,
@@ -157,6 +156,7 @@
     },
     // Memuat wishlist user dan halaman katalog pertama saat komponen aktif.
     async init() {
+      this.bindRenderedCardActions();
       await this.initLocation();
       if (cfg.isLoggedIn) {
         await this.fetchWishlist();
@@ -170,8 +170,10 @@
         this.wishlistIds = Array.isArray(data.items)
           ? data.items.map((id) => Number(id))
           : [];
+        this.syncRenderedCardButtons();
       } catch (e) {
         this.wishlistIds = [];
+        this.syncRenderedCardButtons();
       }
     },
     // Mengambil daftar produk berdasarkan filter, sort, dan halaman aktif.
@@ -207,6 +209,7 @@
         this.currentPage = Number(data.page || nextPage || 1);
         this.totalPages = Number(data.pages || 1);
         this.total = Number(data.total || this.items.length);
+        setTimeout(() => this.syncRenderedCardButtons(), 0);
       } catch (e) {
         this.items = [];
         this.currentPage = 1;
@@ -216,26 +219,52 @@
         this.loading = false;
       }
     },
-    // Memformat harga produk untuk tampilan kartu katalog.
-    formatPrice(value) {
-      return money(value);
+    getItemById(productId) {
+      const targetId = Number(productId || 0);
+      return this.items.find((item) => Number(item?.id || 0) === targetId) || null;
     },
-    // Mengubah nilai stok menjadi label yang mudah dibaca user.
-    stockText(stock) {
-      if (stock === null || stock === undefined || stock === '') {
-        return 'Stok tidak dibatasi';
+    bindRenderedCardActions() {
+      if (!this.$root || this.$root.__vmpCatalogActionsBound) {
+        return;
       }
-      const n = Number(stock || 0);
-      return n > 0 ? `Stok: ${n}` : 'Stok habis';
+
+      this.$root.__vmpCatalogActionsBound = true;
+      this.$root.addEventListener('click', async (event) => {
+        const addButton = event.target.closest('[data-vmp-catalog-add-to-cart]');
+        if (addButton) {
+          event.preventDefault();
+          const item = this.getItemById(addButton.getAttribute('data-product-id'));
+          if (item) {
+            await this.addToCart(item);
+          }
+          return;
+        }
+
+        const wishlistButton = event.target.closest('[data-vmp-catalog-toggle-wishlist]');
+        if (wishlistButton) {
+          event.preventDefault();
+          const item = this.getItemById(wishlistButton.getAttribute('data-product-id'));
+          if (item) {
+            await this.toggleWishlist(item);
+          }
+        }
+      });
     },
-    // Menyusun ringkasan rating produk dari nilai rata-rata dan jumlah ulasan.
-    ratingText(item) {
-      const avg = Number(item?.rating_average || 0);
-      const count = Number(item?.review_count || 0);
-      if (count <= 0) {
-        return 'Belum ada ulasan';
+    syncRenderedCardButtons() {
+      if (!this.$root) {
+        return;
       }
-      return `${avg.toFixed(1)} / 5 dari ${count} ulasan`;
+
+      this.$root.querySelectorAll('[data-vmp-catalog-toggle-wishlist]').forEach((button) => {
+        const productId = Number(button.getAttribute('data-product-id') || 0);
+        const active = this.isWishlisted(productId);
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.innerHTML = wishlistIconSvg(active);
+      });
+      this.$root.querySelectorAll('[data-vmp-catalog-add-to-cart]').forEach((button) => {
+        button.disabled = false;
+      });
     },
     // Mengembalikan semua filter katalog ke kondisi awal.
     resetFilters() {
@@ -347,6 +376,12 @@
       }
 
       try {
+        const button = this.$root
+          ? this.$root.querySelector(`[data-vmp-catalog-add-to-cart][data-product-id="${Number(item.id)}"]`)
+          : null;
+        if (button) {
+          button.disabled = true;
+        }
         await request('cart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -360,6 +395,13 @@
         window.dispatchEvent(new CustomEvent('vmp:cart-updated'));
       } catch (e) {
         this.message = e.message || 'Produk tidak dapat ditambahkan ke keranjang.';
+      } finally {
+        const button = this.$root
+          ? this.$root.querySelector(`[data-vmp-catalog-add-to-cart][data-product-id="${Number(item.id)}"]`)
+          : null;
+        if (button) {
+          button.disabled = false;
+        }
       }
     },
     // Mengecek apakah produk sudah ada di daftar favorit user.
@@ -386,6 +428,7 @@
         this.wishlistIds = Array.isArray(data.items)
           ? data.items.map((id) => Number(id))
           : this.wishlistIds;
+        this.syncRenderedCardButtons();
         this.message = data.active
           ? 'Produk berhasil disimpan ke daftar favorit.'
           : 'Produk dihapus dari daftar favorit.';

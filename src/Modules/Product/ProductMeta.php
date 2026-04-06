@@ -7,40 +7,21 @@ class ProductMeta
     public static function canonical_map()
     {
         return [
-            'product_type' => '_store_product_type',
-            'price' => '_store_price',
-            'sale_price' => '_store_sale_price',
-            'sale_until' => '_store_flashsale_until',
-            'digital_file' => '_store_digital_file',
-            'sku' => '_store_sku',
-            'stock' => '_store_stock',
-            'min_order' => '_store_min_order',
-            'weight' => '_store_weight_kg',
-            'label' => '_store_label',
-            'gallery_ids' => '_store_gallery_ids',
-            'variant_name' => '_store_option_name',
-            'variant_options' => '_store_options',
-            'price_adjustment_name' => '_store_option2_name',
-            'price_adjustment_options' => '_store_advanced_options',
-        ];
-    }
-
-    public static function legacy_map()
-    {
-        return [
-            'price' => ['price'],
-            'sale_price' => ['sale_price'],
-            'sale_until' => ['sale_until'],
-            'sku' => ['sku'],
-            'stock' => ['stock'],
-            'min_order' => ['min_order'],
-            'weight' => ['weight'],
-            'label' => ['label'],
-            'gallery_ids' => ['gallery_ids'],
-            'variant_name' => ['variant_name'],
-            'variant_options' => ['variant_options'],
-            'price_adjustment_name' => ['price_adjustment_name'],
-            'price_adjustment_options' => ['price_adjustment_options'],
+            'product_type' => \WpStore\Domain\Product\ProductMeta::meta_key('product_type'),
+            'price' => \WpStore\Domain\Product\ProductMeta::meta_key('price'),
+            'sale_price' => \WpStore\Domain\Product\ProductMeta::meta_key('sale_price'),
+            'sale_until' => \WpStore\Domain\Product\ProductMeta::meta_key('sale_until'),
+            'digital_file' => \WpStore\Domain\Product\ProductMeta::meta_key('digital_file'),
+            'sku' => \WpStore\Domain\Product\ProductMeta::meta_key('sku'),
+            'stock' => \WpStore\Domain\Product\ProductMeta::meta_key('stock'),
+            'min_order' => \WpStore\Domain\Product\ProductMeta::meta_key('min_order'),
+            'weight' => \WpStore\Domain\Product\ProductMeta::meta_key('weight'),
+            'label' => \WpStore\Domain\Product\ProductMeta::meta_key('label'),
+            'gallery_ids' => \WpStore\Domain\Product\ProductMeta::meta_key('gallery_ids'),
+            'variant_name' => \WpStore\Domain\Product\ProductMeta::meta_key('variant_name'),
+            'variant_options' => \WpStore\Domain\Product\ProductMeta::meta_key('variant_options'),
+            'price_adjustment_name' => \WpStore\Domain\Product\ProductMeta::meta_key('price_adjustment_name'),
+            'price_adjustment_options' => \WpStore\Domain\Product\ProductMeta::meta_key('price_adjustment_options'),
         ];
     }
 
@@ -53,18 +34,10 @@ class ProductMeta
     public static function keys($logical_key)
     {
         $canonical = self::canonical_key($logical_key);
-        $legacy = self::legacy_map();
         $keys = [];
 
         if ($canonical !== '') {
             $keys[] = $canonical;
-        }
-
-        foreach ((array) ($legacy[$logical_key] ?? []) as $key) {
-            $key = (string) $key;
-            if ($key !== '' && !in_array($key, $keys, true)) {
-                $keys[] = $key;
-            }
         }
 
         return $keys;
@@ -103,6 +76,10 @@ class ProductMeta
 
     public static function get_attachment_ids($post_id, $logical_key)
     {
+        if ($logical_key === 'gallery_ids') {
+            return \WpStore\Domain\Product\ProductMeta::gallery_ids((int) $post_id);
+        }
+
         $value = self::get_raw($post_id, $logical_key, []);
         if (is_array($value)) {
             $ids = array_values(array_filter(array_map('intval', $value)));
@@ -120,74 +97,30 @@ class ProductMeta
 
     public static function get_variant_options($post_id)
     {
-        $value = self::get_raw($post_id, 'variant_options', []);
-        if (is_array($value)) {
-            return array_values(array_filter(array_map('trim', array_map('strval', $value)), static function ($item) {
-                return $item !== '';
-            }));
-        }
-
-        if (is_string($value) && $value !== '') {
-            return array_values(array_filter(array_map('trim', explode(',', $value)), static function ($item) {
-                return $item !== '';
-            }));
-        }
-
-        return [];
+        return \WpStore\Domain\Product\ProductMeta::get_list((int) $post_id, 'variant_options');
     }
 
     public static function get_price_adjustment_options($post_id)
     {
-        $value = self::get_raw($post_id, 'price_adjustment_options', []);
-
-        if (is_array($value)) {
-            $items = [];
-            foreach ($value as $row) {
-                if (!is_array($row)) {
-                    continue;
-                }
-
-                $label = isset($row['label']) ? trim((string) $row['label']) : '';
-                if ($label === '') {
-                    continue;
-                }
-
-                $items[] = [
-                    'label' => $label,
-                    'amount' => isset($row['price']) && is_numeric($row['price']) ? (float) $row['price'] : 0.0,
-                ];
+        $core_value = \WpStore\Domain\Product\ProductMeta::get_list((int) $post_id, 'price_adjustment_options');
+        $items = [];
+        foreach ($core_value as $row) {
+            if (!is_array($row)) {
+                continue;
             }
 
-            if (!empty($items)) {
-                return $items;
+            $label = isset($row['label']) ? trim((string) $row['label']) : '';
+            if ($label === '') {
+                continue;
             }
+
+            $items[] = [
+                'label' => $label,
+                'amount' => isset($row['price']) && is_numeric($row['price']) ? (float) $row['price'] : (isset($row['amount']) && is_numeric($row['amount']) ? (float) $row['amount'] : 0.0),
+            ];
         }
 
-        if (is_string($value) && $value !== '') {
-            $rows = preg_split('/\r\n|\r|\n/', $value);
-            $items = [];
-            foreach ((array) $rows as $row) {
-                $line = trim((string) $row);
-                if ($line === '') {
-                    continue;
-                }
-
-                $parts = strpos($line, '=') !== false ? array_map('trim', explode('=', $line, 2)) : [$line, 0];
-                $label = isset($parts[0]) ? (string) $parts[0] : '';
-                if ($label === '') {
-                    continue;
-                }
-
-                $items[] = [
-                    'label' => $label,
-                    'amount' => isset($parts[1]) && is_numeric($parts[1]) ? (float) $parts[1] : 0.0,
-                ];
-            }
-
-            return $items;
-        }
-
-        return [];
+        return $items;
     }
 
     public static function update_logical($post_id, $logical_key, $value)
@@ -211,6 +144,17 @@ class ProductMeta
 
     public static function normalize_label($value)
     {
+        $canonical = \WpStore\Domain\Product\ProductMeta::canonical_label($value);
+        if ($canonical !== '') {
+            $map = [
+                'label-best' => 'best',
+                'label-limited' => 'limited',
+                'label-new' => 'new',
+            ];
+
+            return isset($map[$canonical]) ? $map[$canonical] : sanitize_key((string) $value);
+        }
+
         $value = sanitize_key((string) $value);
         $map = [
             'label-best' => 'best',
@@ -223,13 +167,6 @@ class ProductMeta
 
     public static function canonical_label($value)
     {
-        $value = self::normalize_label($value);
-        $map = [
-            'best' => 'label-best',
-            'limited' => 'label-limited',
-            'new' => 'label-new',
-        ];
-
-        return isset($map[$value]) ? $map[$value] : '';
+        return (string) \WpStore\Domain\Product\ProductMeta::canonical_label($value);
     }
 }

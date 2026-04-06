@@ -246,7 +246,7 @@ class MessageRepository
                 continue;
             }
 
-            $buyer_id = (int) get_post_meta($order_id, 'vmp_user_id', true);
+            $buyer_id = \VelocityMarketplace\Modules\Order\OrderData::buyer_id($order_id);
             $items = OrderData::get_items($order_id);
             $seller_ids = [];
             foreach ($items as $line) {

@@ -12,19 +12,14 @@ class ProductQuery
             $source = [];
         }
 
-        return [
-            'search' => sanitize_text_field((string) ($source['search'] ?? $source['s'] ?? '')),
-            'sort' => sanitize_key((string) ($source['sort'] ?? 'latest')),
-            'cat' => (int) ($source['product_cat'] ?? $source['cat'] ?? 0),
-            'author' => (int) ($source['author'] ?? 0),
-            'label' => sanitize_key((string) ($source['product_label'] ?? $source['label'] ?? '')),
+        $filters = \WpStore\Domain\Product\ProductQuery::normalize_filters($source);
+
+        return array_merge($filters, [
             'store_type' => sanitize_key((string) ($source['store_type'] ?? '')),
             'store_province_id' => sanitize_text_field((string) ($source['store_province_id'] ?? '')),
             'store_city_id' => sanitize_text_field((string) ($source['store_city_id'] ?? '')),
             'store_subdistrict_id' => sanitize_text_field((string) ($source['store_subdistrict_id'] ?? '')),
-            'min_price' => $this->normalize_numeric_filter($source['min_price'] ?? ''),
-            'max_price' => $this->normalize_numeric_filter($source['max_price'] ?? ''),
-        ];
+        ]);
     }
 
     public function build_query_args($filters, $overrides = [])
@@ -32,36 +27,12 @@ class ProductQuery
         $filters = $this->normalize_filters(is_array($filters) ? $filters : []);
         $overrides = is_array($overrides) ? $overrides : [];
 
-        $args = [
-            'post_type' => Contract::product_post_types(),
+        $base_overrides = array_merge([
+            'post_type' => Contract::PRODUCT_POST_TYPE,
             'post_status' => 'publish',
-        ];
+        ], $overrides);
 
-        if (!empty($overrides['paged'])) {
-            $args['paged'] = max(1, (int) $overrides['paged']);
-        }
-
-        if (!empty($overrides['posts_per_page'])) {
-            $args['posts_per_page'] = max(1, (int) $overrides['posts_per_page']);
-        }
-
-        if ($filters['search'] !== '') {
-            $args['s'] = $filters['search'];
-        }
-
-        if ($filters['cat'] > 0) {
-            $args['tax_query'] = [
-                [
-                    'taxonomy' => Contract::PRODUCT_TAXONOMY,
-                    'field' => 'term_id',
-                    'terms' => [$filters['cat']],
-                ],
-            ];
-        }
-
-        if ($filters['author'] > 0) {
-            $args['author'] = $filters['author'];
-        }
+        $args = \WpStore\Domain\Product\ProductQuery::build_query_args($filters, $base_overrides);
 
         $author_ids = $this->resolve_author_ids($filters);
         if ($author_ids !== null) {
@@ -74,47 +45,7 @@ class ProductQuery
             }
         }
 
-        $meta_query = [];
-        if ($filters['min_price'] !== '') {
-            $meta_query[] = [
-                'key' => ProductMeta::canonical_key('price'),
-                'value' => (float) $filters['min_price'],
-                'type' => 'NUMERIC',
-                'compare' => '>=',
-            ];
-        }
-
-        if ($filters['max_price'] !== '') {
-            $meta_query[] = [
-                'key' => ProductMeta::canonical_key('price'),
-                'value' => (float) $filters['max_price'],
-                'type' => 'NUMERIC',
-                'compare' => '<=',
-            ];
-        }
-
-        if ($filters['label'] !== '') {
-            $canonical_label = ProductMeta::canonical_label($filters['label']);
-            $meta_query[] = [
-                'key' => ProductMeta::canonical_key('label'),
-                'value' => $canonical_label !== '' ? $canonical_label : $filters['label'],
-                'compare' => '=',
-            ];
-        }
-
-        if (!empty($meta_query)) {
-            $args['meta_query'] = array_merge(['relation' => 'AND'], $meta_query);
-        }
-
-        if ($filters['sort'] === 'price_asc') {
-            $args['meta_key'] = ProductMeta::canonical_key('price');
-            $args['orderby'] = 'meta_value_num';
-            $args['order'] = 'ASC';
-        } elseif ($filters['sort'] === 'price_desc') {
-            $args['meta_key'] = ProductMeta::canonical_key('price');
-            $args['orderby'] = 'meta_value_num';
-            $args['order'] = 'DESC';
-        } elseif ($filters['sort'] === 'sold_desc') {
+        if ($filters['sort'] === 'sold_desc') {
             $args['meta_key'] = 'vmp_sold_count';
             $args['orderby'] = 'meta_value_num';
             $args['order'] = 'DESC';
@@ -125,15 +56,6 @@ class ProductQuery
         } elseif ($filters['sort'] === 'popular') {
             $args['meta_key'] = 'hit';
             $args['orderby'] = 'meta_value_num';
-            $args['order'] = 'DESC';
-        } elseif ($filters['sort'] === 'name_asc') {
-            $args['orderby'] = 'title';
-            $args['order'] = 'ASC';
-        } elseif ($filters['sort'] === 'name_desc') {
-            $args['orderby'] = 'title';
-            $args['order'] = 'DESC';
-        } else {
-            $args['orderby'] = 'date';
             $args['order'] = 'DESC';
         }
 
@@ -151,25 +73,18 @@ class ProductQuery
 
     public function label_options()
     {
-        return [
-            'new' => __('Baru', 'velocity-marketplace'),
-            'limited' => __('Terbatas', 'velocity-marketplace'),
-            'best' => __('Terlaris', 'velocity-marketplace'),
-        ];
+        return \WpStore\Domain\Product\ProductQuery::label_options();
     }
 
     public function sort_options()
     {
-        return [
-            'latest' => __('Terbaru', 'velocity-marketplace'),
+        $base = \WpStore\Domain\Product\ProductQuery::sort_options();
+
+        return array_merge($base, [
             'sold_desc' => __('Terlaris', 'velocity-marketplace'),
             'rating_desc' => __('Rating Tertinggi', 'velocity-marketplace'),
-            'price_asc' => __('Harga Terendah', 'velocity-marketplace'),
-            'price_desc' => __('Harga Tertinggi', 'velocity-marketplace'),
-            'name_asc' => __('Nama A-Z', 'velocity-marketplace'),
-            'name_desc' => __('Nama Z-A', 'velocity-marketplace'),
             'popular' => __('Paling Banyak Dilihat', 'velocity-marketplace'),
-        ];
+        ]);
     }
 
     public function describe_active_filters($filters = [])

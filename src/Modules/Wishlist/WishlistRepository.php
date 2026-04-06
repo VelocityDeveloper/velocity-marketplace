@@ -6,22 +6,14 @@ use VelocityMarketplace\Support\Contract;
 
 class WishlistRepository
 {
-    const USER_META_KEY = 'vmp_wishlist';
-
     public function get_ids($user_id = 0)
     {
-        $user_id = $user_id > 0 ? (int) $user_id : get_current_user_id();
-        if ($user_id <= 0) {
-            return [];
-        }
-
-        $raw = get_user_meta($user_id, self::USER_META_KEY, true);
-        if (!is_array($raw)) {
-            $raw = [];
-        }
-
+        $core = $this->core_service();
         $ids = [];
-        foreach ($raw as $id) {
+        foreach ((array) $core->get_raw_items() as $id) {
+            if (is_array($id)) {
+                $id = isset($id['id']) ? (int) $id['id'] : 0;
+            }
             $id = (int) $id;
             if ($id > 0 && Contract::is_product($id)) {
                 $ids[] = $id;
@@ -49,12 +41,8 @@ class WishlistRepository
             return false;
         }
 
-        $ids = $this->get_ids($user_id);
-        if (!in_array($product_id, $ids, true)) {
-            $ids[] = $product_id;
-        }
-
-        return (bool) update_user_meta($user_id, self::USER_META_KEY, array_values(array_unique($ids)));
+        $this->core_service()->add_item($product_id, []);
+        return true;
     }
 
     public function remove($product_id, $user_id = 0)
@@ -65,11 +53,8 @@ class WishlistRepository
             return false;
         }
 
-        $ids = array_values(array_filter($this->get_ids($user_id), function ($id) use ($product_id) {
-            return (int) $id !== $product_id;
-        }));
-
-        return (bool) update_user_meta($user_id, self::USER_META_KEY, $ids);
+        $this->core_service()->remove_item($product_id, []);
+        return true;
     }
 
     public function toggle($product_id, $user_id = 0)
@@ -81,6 +66,11 @@ class WishlistRepository
 
         $this->add($product_id, $user_id);
         return true;
+    }
+
+    private function core_service()
+    {
+        return new \WpStore\Domain\Wishlist\WishlistService();
     }
 }
 

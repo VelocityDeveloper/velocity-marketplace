@@ -17,18 +17,20 @@ class ProfileService
             $name = (string) $user->display_name;
         }
 
+        $primary_address = $this->get_primary_customer_address($user_id);
+
         return [
             'name' => $name,
             'email' => $user ? (string) $user->user_email : '',
-            'phone' => (string) get_user_meta($user_id, 'vmp_member_phone', true),
-            'address' => (string) get_user_meta($user_id, 'vmp_member_address', true),
-            'province_id' => (string) get_user_meta($user_id, 'vmp_member_province_id', true),
-            'province_name' => (string) get_user_meta($user_id, 'vmp_member_province', true),
-            'city_id' => (string) get_user_meta($user_id, 'vmp_member_city_id', true),
-            'city_name' => (string) get_user_meta($user_id, 'vmp_member_city', true),
-            'subdistrict_id' => (string) get_user_meta($user_id, 'vmp_member_subdistrict_id', true),
-            'subdistrict_name' => (string) get_user_meta($user_id, 'vmp_member_subdistrict', true),
-            'postcode' => (string) get_user_meta($user_id, 'vmp_member_postcode', true),
+            'phone' => (string) get_user_meta($user_id, '_store_phone', true),
+            'address' => (string) ($primary_address['address'] ?? ''),
+            'province_id' => (string) ($primary_address['province_id'] ?? ''),
+            'province_name' => (string) ($primary_address['province_name'] ?? ''),
+            'city_id' => (string) ($primary_address['city_id'] ?? ''),
+            'city_name' => (string) ($primary_address['city_name'] ?? ''),
+            'subdistrict_id' => (string) ($primary_address['subdistrict_id'] ?? ''),
+            'subdistrict_name' => (string) ($primary_address['subdistrict_name'] ?? ''),
+            'postcode' => (string) ($primary_address['postal_code'] ?? ''),
         ];
     }
 
@@ -47,27 +49,23 @@ class ProfileService
             return new \WP_Error('invalid_member_profile', 'Nama, telepon, dan alamat wajib diisi.');
         }
 
-        $map = [
-            'vmp_member_phone' => $phone,
-            'vmp_member_address' => $address,
-            'vmp_member_subdistrict_id' => $this->sanitize_text($payload, ['subdistrict_id', 'customer_subdistrict_id']),
-            'vmp_member_subdistrict' => $this->sanitize_text($payload, ['subdistrict_name', 'customer_subdistrict_name']),
-            'vmp_member_city_id' => $this->sanitize_text($payload, ['city_id', 'customer_city_id']),
-            'vmp_member_city' => $this->sanitize_text($payload, ['city_name', 'customer_city_name']),
-            'vmp_member_province_id' => $this->sanitize_text($payload, ['province_id', 'customer_province_id']),
-            'vmp_member_province' => $this->sanitize_text($payload, ['province_name', 'customer_province_name']),
-            'vmp_member_postcode' => $this->sanitize_text($payload, ['postcode', 'customer_postcode']),
-        ];
-
-        foreach ($map as $meta_key => $value) {
-            update_user_meta($user_id, $meta_key, $value);
-        }
-
         update_user_meta($user_id, 'first_name', $name);
         update_user_meta($user_id, 'nickname', $name);
+        update_user_meta($user_id, '_store_phone', $phone);
         wp_update_user([
             'ID' => $user_id,
             'display_name' => $name,
+        ]);
+
+        $this->save_primary_customer_address($user_id, [
+            'address' => $address,
+            'subdistrict_id' => $this->sanitize_text($payload, ['subdistrict_id', 'customer_subdistrict_id']),
+            'subdistrict_name' => $this->sanitize_text($payload, ['subdistrict_name', 'customer_subdistrict_name']),
+            'city_id' => $this->sanitize_text($payload, ['city_id', 'customer_city_id']),
+            'city_name' => $this->sanitize_text($payload, ['city_name', 'customer_city_name']),
+            'province_id' => $this->sanitize_text($payload, ['province_id', 'customer_province_id']),
+            'province_name' => $this->sanitize_text($payload, ['province_name', 'customer_province_name']),
+            'postal_code' => $this->sanitize_text($payload, ['postcode', 'customer_postcode']),
         ]);
 
         return [
@@ -240,5 +238,55 @@ class ProfileService
         }
 
         return (int) get_post_field('post_author', $attachment_id) === $user_id;
+    }
+
+    private function get_primary_customer_address($user_id)
+    {
+        $addresses = get_user_meta((int) $user_id, '_store_addresses', true);
+        if (!is_array($addresses) || empty($addresses)) {
+            return [];
+        }
+
+        $primary = reset($addresses);
+        return is_array($primary) ? $primary : [];
+    }
+
+    private function save_primary_customer_address($user_id, array $payload)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return;
+        }
+
+        $addresses = get_user_meta($user_id, '_store_addresses', true);
+        if (!is_array($addresses)) {
+            $addresses = [];
+        }
+
+        $primary = [
+            'id' => isset($addresses[0]['id']) && is_string($addresses[0]['id']) && $addresses[0]['id'] !== ''
+                ? $addresses[0]['id']
+                : 'addr_primary',
+            'label' => isset($addresses[0]['label']) && is_string($addresses[0]['label']) && $addresses[0]['label'] !== ''
+                ? $addresses[0]['label']
+                : 'Utama',
+            'address' => (string) ($payload['address'] ?? ''),
+            'province_id' => (string) ($payload['province_id'] ?? ''),
+            'province_name' => (string) ($payload['province_name'] ?? ''),
+            'city_id' => (string) ($payload['city_id'] ?? ''),
+            'city_name' => (string) ($payload['city_name'] ?? ''),
+            'subdistrict_id' => (string) ($payload['subdistrict_id'] ?? ''),
+            'subdistrict_name' => (string) ($payload['subdistrict_name'] ?? ''),
+            'postal_code' => (string) ($payload['postal_code'] ?? ''),
+            'city' => (string) ($payload['city_name'] ?? ''),
+        ];
+
+        if (!empty($addresses)) {
+            $addresses[0] = $primary;
+        } else {
+            $addresses[] = $primary;
+        }
+
+        update_user_meta($user_id, '_store_addresses', array_values($addresses));
     }
 }

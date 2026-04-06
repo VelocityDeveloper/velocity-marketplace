@@ -2,8 +2,15 @@
 
 namespace VelocityMarketplace\Modules\Order;
 
+use WpStore\Domain\Order\OrderService;
+
 class OrderData
 {
+    public static function core_service()
+    {
+        return new OrderService();
+    }
+
     public static function statuses()
     {
         return [
@@ -108,8 +115,34 @@ class OrderData
 
     public static function get_items($order_id)
     {
-        $items = get_post_meta((int) $order_id, 'vmp_items', true);
+        $order_id = (int) $order_id;
+        $items = get_post_meta($order_id, '_store_order_items', true);
         return is_array($items) ? $items : [];
+    }
+
+    public static function buyer_id($order_id)
+    {
+        return (int) get_post_meta((int) $order_id, '_store_order_user_id', true);
+    }
+
+    public static function core_status($status)
+    {
+        return self::core_service()->map_external_status($status);
+    }
+
+    public static function core_payment_method($payment_method)
+    {
+        return self::core_service()->normalize_payment_method($payment_method);
+    }
+
+    public static function sync_core_status($order_id, $status)
+    {
+        self::core_service()->update_status((int) $order_id, self::core_status($status));
+    }
+
+    public static function sync_core_payment($order_id, array $payment_info)
+    {
+        self::core_service()->update_payment_data((int) $order_id, $payment_info);
     }
 
     public static function seller_items($order_id, $seller_id)

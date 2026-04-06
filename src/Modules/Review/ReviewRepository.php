@@ -67,7 +67,7 @@ class ReviewRepository
             return false;
         }
 
-        $owner_id = (int) get_post_meta($order_id, 'vmp_user_id', true);
+        $owner_id = OrderData::buyer_id($order_id);
         if ($owner_id !== $user_id) {
             return false;
         }

@@ -17,11 +17,35 @@ class ProductArchive
             return;
         }
 
-        if (!$query->is_post_type_archive(Contract::PRODUCT_POST_TYPE) && !$query->is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE)) {
+        if (!$query->is_post_type_archive(Contract::PRODUCT_POST_TYPE)) {
             return;
         }
 
-        $filters = (new ProductQuery())->normalize_filters($_GET);
-        (new ProductQuery())->apply_to_query($query, $filters);
+        $product_query = new ProductQuery();
+        $filters = $product_query->normalize_filters($_GET);
+
+        if (!$this->needs_marketplace_extension($filters)) {
+            return;
+        }
+
+        $product_query->apply_to_query($query, $filters);
+    }
+
+    private function needs_marketplace_extension(array $filters)
+    {
+        $sort = (string) ($filters['sort'] ?? 'latest');
+        if (in_array($sort, ['sold_desc', 'rating_desc', 'popular'], true)) {
+            return true;
+        }
+
+        if (!empty($filters['store_type'])) {
+            return true;
+        }
+
+        if (!empty($filters['store_province_id']) || !empty($filters['store_city_id']) || !empty($filters['store_subdistrict_id'])) {
+            return true;
+        }
+
+        return false;
     }
 }

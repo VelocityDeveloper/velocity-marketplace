@@ -31,43 +31,13 @@
     return data;
   };
 
-  // Menormalkan satu baris rekening bank populer agar shape datanya konsisten.
-  const normalizePopularRow = (row = {}) => ({
-    bank_code: String(row.bank_code || ''),
-    account_number: String(row.account_number || ''),
-    account_holder: String(row.account_holder || ''),
-  });
-
-  // Menormalkan satu baris rekening bank custom agar shape datanya konsisten.
-  const normalizeCustomRow = (row = {}) => ({
-    bank_name: String(row.bank_name || ''),
-    account_number: String(row.account_number || ''),
-    account_holder: String(row.account_holder || ''),
-  });
-
   // Menyalin payload settings dari backend ke state Alpine page admin.
   const applySettings = (target, settings = {}) => {
-    target.form.currency = String(settings.currency || 'IDR');
-    target.form.currency_symbol = String(settings.currency_symbol || 'Rp');
-    target.form.default_order_status = String(settings.default_order_status || 'pending_payment');
-    target.form.payment_methods = Array.isArray(settings.payment_methods) && settings.payment_methods.length
-      ? settings.payment_methods.map((value) => String(value || ''))
-      : ['bank'];
     target.form.seller_product_status = String(settings.seller_product_status || 'publish');
-    target.form.shipping_api_key = String(settings.shipping_api_key || '');
-    target.form.popular_bank_accounts = Array.isArray(settings.popular_bank_accounts) && settings.popular_bank_accounts.length
-      ? settings.popular_bank_accounts.map(normalizePopularRow)
-      : [];
-    target.form.custom_bank_accounts = Array.isArray(settings.custom_bank_accounts) && settings.custom_bank_accounts.length
-      ? settings.custom_bank_accounts.map(normalizeCustomRow)
-      : [];
     target.form.email_admin_recipient = String(settings.email_admin_recipient || '');
     target.form.email_template_admin_order = String(settings.email_template_admin_order || '');
     target.form.email_template_customer_order = String(settings.email_template_customer_order || '');
     target.form.email_template_status_update = String(settings.email_template_status_update || '');
-    target.gateways = settings.gateways && typeof settings.gateways === 'object'
-      ? settings.gateways
-      : { duitku: false };
   };
 
   // Membaca isi editor email dari TinyMCE atau textarea fallback.
@@ -95,24 +65,15 @@
     }
   };
 
-  // Menyediakan state Alpine untuk tab pengaturan umum dan bank.
+  // Menyediakan state Alpine untuk pengaturan marketplace-specific.
   const component = () => ({
     activeTab: 'general',
     saving: false,
     loading: false,
     saveMessage: '',
     saveError: '',
-    gateways: { duitku: false },
-    popularBankEntries: Object.entries(cfg.popularBanks || {}).map(([code, label]) => ({ code, label })),
     form: {
-      currency: 'IDR',
-      currency_symbol: 'Rp',
-      default_order_status: 'pending_payment',
-      payment_methods: ['bank'],
       seller_product_status: 'publish',
-      shipping_api_key: '',
-      popular_bank_accounts: [],
-      custom_bank_accounts: [],
       email_admin_recipient: '',
       email_template_admin_order: '',
       email_template_customer_order: '',
@@ -133,22 +94,6 @@
           this.refreshEditors();
         });
       }
-    },
-    // Menambah baris rekening baru untuk bank populer.
-    addPopularBank() {
-      this.form.popular_bank_accounts.push(normalizePopularRow());
-    },
-    // Menghapus baris rekening populer berdasarkan index tampilan.
-    removePopularBank(index) {
-      this.form.popular_bank_accounts.splice(Number(index), 1);
-    },
-    // Menambah baris rekening baru untuk bank di luar daftar populer.
-    addCustomBank() {
-      this.form.custom_bank_accounts.push(normalizeCustomRow());
-    },
-    // Menghapus baris rekening custom berdasarkan index tampilan.
-    removeCustomBank(index) {
-      this.form.custom_bank_accounts.splice(Number(index), 1);
     },
     // Menyalin isi editor email ke state Alpine sebelum proses simpan.
     syncEditorsToState() {
@@ -185,16 +130,7 @@
       try {
         this.syncEditorsToState();
         const payload = {
-          currency: this.form.currency,
-          currency_symbol: this.form.currency_symbol,
-          default_order_status: this.form.default_order_status,
-          payment_methods: Array.isArray(this.form.payment_methods)
-            ? this.form.payment_methods
-            : [],
           seller_product_status: this.form.seller_product_status,
-          shipping_api_key: this.form.shipping_api_key,
-          popular_bank_accounts: this.form.popular_bank_accounts,
-          custom_bank_accounts: this.form.custom_bank_accounts,
           email_admin_recipient: this.form.email_admin_recipient,
           email_template_admin_order: this.form.email_template_admin_order,
           email_template_customer_order: this.form.email_template_customer_order,

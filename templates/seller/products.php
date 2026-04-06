@@ -1,9 +1,9 @@
 <?php
-use VelocityMarketplace\Modules\Product\ProductFields;
+use WpStore\Domain\Product\ProductFields;
     $product_captcha_html = \VelocityMarketplace\Modules\Captcha\CaptchaBridge::render();
     $edit_product_id = isset($_GET['edit_product']) ? (int) $_GET['edit_product'] : 0;
     $edit_product = null;
-    if ($edit_product_id > 0 && get_post_type($edit_product_id) === 'vmp_product') {
+    if ($edit_product_id > 0 && get_post_type($edit_product_id) === 'store_product') {
         $author_id = (int) get_post_field('post_author', $edit_product_id);
         if ($author_id === $current_user_id || current_user_can('manage_options')) {
             $edit_product = get_post($edit_product_id);
@@ -17,7 +17,7 @@ use VelocityMarketplace\Modules\Product\ProductFields;
     ];
 
     if ($edit_product) {
-        $terms = wp_get_post_terms($edit_product_id, 'vmp_product_cat', ['fields' => 'ids']);
+        $terms = wp_get_post_terms($edit_product_id, 'store_product_cat', ['fields' => 'ids']);
         if (!is_wp_error($terms) && !empty($terms)) {
             $defaults['category_id'] = (int) $terms[0];
         }
@@ -25,8 +25,8 @@ use VelocityMarketplace\Modules\Product\ProductFields;
 
     $featured_image_id = $edit_product ? (int) get_post_thumbnail_id($edit_product_id) : 0;
     $featured_image_url = $featured_image_id > 0 ? wp_get_attachment_image_url($featured_image_id, 'medium') : '';
-    $cats = get_terms(['taxonomy' => 'vmp_product_cat','hide_empty' => false]);
-    $products_query = new \WP_Query(['post_type' => 'vmp_product','post_status' => ['publish', 'pending', 'draft'],'posts_per_page' => 30,'author' => $current_user_id,'orderby' => 'date','order' => 'DESC']);
+    $cats = get_terms(['taxonomy' => 'store_product_cat','hide_empty' => false]);
+    $products_query = new \WP_Query(['post_type' => 'store_product','post_status' => ['publish', 'pending', 'draft'],'posts_per_page' => 30,'author' => $current_user_id,'orderby' => 'date','order' => 'DESC']);
     ?>
     <div class="row g-3">
         <div class="col-lg-7">

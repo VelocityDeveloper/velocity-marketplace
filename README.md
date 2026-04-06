@@ -1,4 +1,4 @@
-# Velocity Marketplace
+# VD Marketplace
 
 Plugin marketplace WordPress berbasis REST API + Alpine.js.
 
@@ -7,22 +7,26 @@ Status saat ini:
 - masih tahap pembuatan awal
 - banyak bagian belum final
 - belum dirilis
-- arah arsitektur sekarang adalah menjadikan `velocity-marketplace` versi lengkap / superset dari `wp-store`, bukan sistem terpisah yang mengabaikan fondasi data lama
+- arah arsitektur sekarang adalah menjadikan `vd-marketplace` addon marketplace di atas `vd-store`, bukan sistem terpisah yang mengabaikan fondasi data lama
+- runtime plugin sekarang **wajib** membutuhkan `VD Store` aktif
+- jika `VD Store` tidak aktif, `VD Marketplace` tidak akan boot
 
 Dokumen ini adalah catatan kerja untuk developer. Kalau ada perubahan struktur, alur, nama shortcode, atau file baru, README ini harus ikut diperbarui supaya orang berikutnya tidak menebak-nebak arsitektur plugin.
 
 ## Arah Arsitektur
 
-Plugin ini tidak lagi diposisikan sebagai sistem yang berdiri sendiri tanpa hubungan data dengan `wp-store`.
+Plugin ini tidak lagi diposisikan sebagai sistem yang berdiri sendiri tanpa hubungan data dengan `vd-store`.
 
 Target resmi perusahaan:
-- `wp-store` = implementasi commerce single-store
-- `velocity-marketplace` = implementasi commerce multi-seller / marketplace
+- `vd-store` = implementasi commerce single-store / core commerce
+- `vd-marketplace` = implementasi commerce multi-seller / marketplace addon
 - keduanya harus bergerak menuju shared commerce contract yang sama untuk:
   - CPT inti
   - taxonomy produk
   - meta inti produk
   - shortcode publik frontend
+- `vd-marketplace` tidak boleh lagi bertindak sebagai fallback core kedua jika `vd-store` tidak aktif
+- pengaturan inti commerce seperti mata uang, pembayaran, rekening bank, API ongkir, dan halaman inti harus mengikuti `vd-store`
 
 Dokumen acuan utamanya ada di:
 - `SHARED-CONTRACT.md`
@@ -56,7 +60,15 @@ Catatan:
 - Post type order canonical: `store_order`
 - Taxonomy kategori produk canonical: `store_product_cat`
 - Option settings: `vmp_settings`
+  - sekarang hanya untuk setting marketplace-specific:
+    - `seller_product_status`
+    - `email_admin_recipient`
+    - `email_template_admin_order`
+    - `email_template_customer_order`
+    - `email_template_status_update`
 - Option pages: `vmp_pages`
+  - dipakai untuk halaman marketplace-specific, saat ini utamanya `toko`
+  - halaman inti seperti katalog, cart, checkout, profile, dan tracking mengikuti `vd-store`
 - Option db version: `vmp_db_version`
 - Penyimpanan pesan: custom table `wp_vmp_messages`
 - Penyimpanan ulasan: custom table `wp_vmp_reviews`
@@ -66,27 +78,33 @@ Catatan:
   - kupon: CPT + post meta
   - pesan: custom table
   - ulasan: custom table
-  - cart: cookie / user meta
-  - wishlist: user meta
+  - cart dasar: tabel `store_carts` milik `vd-store`
+  - wishlist dasar: tabel `store_wishlists` milik `vd-store`
   - profil user umum: user meta
   - pengaturan kurir toko: user meta
   - role marketplace: `vmp_member`
   - badge star seller: user meta hasil evaluasi otomatis
-- Penyimpanan cart:
-  - user login: user meta `vmp_cart_items`
-  - guest: cookie `vmp_guest_cart`
+- Pengaturan inti yang dibaca dari `vd-store`:
+  - `currency_symbol`
+  - `payment_methods`
+  - `store_bank_accounts`
+  - `rajaongkir_api_key`
+  - `page_catalog`
+  - `page_cart`
+  - `page_checkout`
+  - `page_profile`
+  - `page_tracking`
+- Snapshot cart marketplace:
+  - raw cart canonical: kolom `cart`
+  - snapshot shipping core: kolom `shipping_data`
+  - snapshot grouping seller marketplace: kolom `marketplace_snapshot`
+- tidak ada lagi storage cart legacy aktif di addon
 
 - Skema profil member:
   - `first_name` / `display_name` / `nickname` (WordPress core)
-  - `vmp_member_phone`
-  - `vmp_member_address`
-  - `vmp_member_province_id`
-  - `vmp_member_province`
-  - `vmp_member_city_id`
-  - `vmp_member_city`
-  - `vmp_member_subdistrict_id`
-  - `vmp_member_subdistrict`
-  - `vmp_member_postcode`
+  - `_store_phone`
+  - `_store_addresses`
+  - `_store_avatar_id`
 - Meta khusus seller:
   - `vmp_store_name`
   - `vmp_store_phone`
@@ -115,22 +133,19 @@ Catatan:
 ## Shortcode resmi
 
 Catatan:
-- daftar berikut adalah shortcode utama yang saat ini dipakai `velocity-marketplace`
+- daftar berikut adalah shortcode utama yang saat ini dipakai `vd-marketplace`
 - untuk kontrak publik lintas plugin perusahaan, shortcode `wp_store_*` tetap dianggap API stabil
 - `vmp_*` tetap hidup sebagai namespace modern / internal
 
-- `[vmp_catalog]`
 - `[vmp_products]`
 - `[vmp_product_card]`
+  - renderer kartu produk sekarang mengikuti komponen core `vd-store`
 - `[vmp_product_gallery]`
 - `[vmp_product_reviews]`
 - `[vmp_product_seller_card]`
-- `[vmp_related_products]`
 - `[vmp_recently_viewed]`
   - default dipakai di bagian bawah halaman akun
 - `[vmp_product_filter]`
-- `[vmp_thumbnail]`
-- `[vmp_price]`
 - `[vmp_rating]`
 - `[vmp_review_count]`
 - `[vmp_sold_count]`
@@ -145,6 +160,12 @@ Catatan:
 - `[vmp_messages_icon]`
 - `[vmp_notifications_icon]`
 - `[vmp_profile_icon]`
+
+Shortcode inti yang sudah milik `vd-store` tidak lagi diregister ulang di addon:
+- gunakan `[wp_store_catalog]` untuk katalog inti
+- gunakan `[wp_store_thumbnail]` untuk thumbnail produk
+- gunakan `[wp_store_price]` untuk harga produk
+- gunakan `[wp_store_related]` untuk produk terkait
 
 ### Ringkasan shortcode baru
 
@@ -177,17 +198,9 @@ Catatan:
   - render kartu seller pada halaman produk
   - support current single product context tanpa isi `id`
 
-- `[vmp_related_products]`
-  - render daftar produk terkait berdasarkan kategori yang sama
-  - exclude produk aktif
-  - urutan default: `vmp_sold_count DESC`, lalu `date DESC`
-  - atribut:
-    - `id`
-    - `limit`
-    - `title`
-  - contoh:
-    - `[vmp_related_products]`
-    - `[vmp_related_products id="123" limit="8"]`
+- produk terkait sekarang gunakan shortcode core:
+  - `[wp_store_related]`
+  - parameter utama: `id`, `per_page`
 
 - `[vmp_recently_viewed]`
   - render daftar produk yang baru dilihat
@@ -262,14 +275,18 @@ Catatan:
 
 ## Halaman default
 
-Installer akan membuat page ini jika belum ada:
+Installer hanya membuat page marketplace-specific jika belum ada:
 
-- `catalog` -> `[vmp_catalog]`
-- `cart` -> `[vmp_cart_page]`
-- `checkout` -> `[vmp_checkout]`
-- `account` -> `[vmp_profile]`
-- `order-tracking` -> `[vmp_tracking]`
 - `store` -> `[vmp_store_profile]`
+
+Halaman inti:
+- katalog
+- cart
+- checkout
+- account / profile
+- tracking
+
+mengikuti page bawaan `vd-store` dan tidak dibuat ulang oleh addon.
 
 ## Struktur folder
 
@@ -323,7 +340,6 @@ Installer akan membuat page ini jika belum ada:
   - placeholder legacy internal
   - tidak dipakai sebagai asset aktif
 
-- `assets/js/dashboard.js`
   - behavior ringan dashboard
   - focus composer pesan
   - auto scroll thread pesan ke bawah
@@ -347,11 +363,6 @@ Installer akan membuat page ini jika belum ada:
   - create role
   - create default pages
   - seed default settings
-
-- `PostTypes.php`
-  - register taxonomy `vmp_product_cat`
-  - register CPT `vmp_product`
-  - register CPT `vmp_order`
 
 - `SettingsPage.php`
   - halaman pengaturan plugin di wp-admin
@@ -434,26 +445,25 @@ Installer akan membuat page ini jika belum ada:
 - `CheckoutController.php`
   - REST API checkout
   - validasi payload
-  - buat order `vmp_order`
+  - buat order marketplace di atas `store_order`
   - validasi kupon
   - validasi COD per kota per toko
-  - create invoice Duitku jika metode pembayaran `duitku` dipilih dan gateway tersedia
+  - meminta inisialisasi payment ke core `vd-store` jika metode pembayaran `duitku` dipilih
 
 ### `src/Modules/Payment/`
 
-- `DuitkuGateway.php`
-  - helper availability gateway Duitku dari plugin `velocity-addons`
-  - bridge create invoice ke `Velocity_Addons_Duitku`
-
 - `DuitkuCallbackListener.php`
-  - listener action `velocity_duitku_callback`
-  - sinkronisasi callback gateway ke status `vmp_order`
+  - subscriber ke event payment core:
+    - `wp_store_payment_callback_received`
+    - `wp_store_payment_completed`
+    - `wp_store_payment_failed`
+  - sinkronisasi hasil payment core ke metadata/status marketplace
 
 ### `src/Modules/Coupon/`
 
 - `CouponAdmin.php`
   - metabox dan kolom admin untuk kupon/voucher
-  - kupon disimpan sebagai CPT `vmp_coupon`
+  - kupon canonical disimpan sebagai CPT `store_coupon`
 
 - `CouponController.php`
   - REST preview kupon saat checkout
@@ -523,17 +533,17 @@ Catatan:
 ### `src/Modules/Order/`
 
 - `OrderAdmin.php`
-  - wp-admin UI untuk `vmp_order`
-  - list column
-  - metabox detail order
+  - metabox fulfillment marketplace di layar admin `store_order`
   - pengiriman per seller
   - edit kurir/resi per seller
+  - tidak lagi mengambil alih list table order utama milik core
 
 - `OrderData.php`
   - helper status order
   - helper query order seller
   - helper shipping groups
   - helper seller items
+  - baca item order canonical dari `_store_order_items`
 
 ### `src/Modules/Product/`
 
@@ -556,14 +566,8 @@ Catatan:
   - ringkasan rating HTML siap pakai untuk loop katalog/archive
   - sold count produk
 
-- `ProductFields.php`
-  - schema field produk
-  - register meta produk
-  - render/save field reusable
-
-- `ProductMetaBox.php`
-  - admin metabox produk
-  - memakai schema dari `ProductFields`
+- admin metabox `store_product` mengikuti `vd-store` lewat `ProductMetaBoxes` / `ProductSchema`
+- addon seller form memakai helper field produk dari core yang sama
 
 ### `src/Modules/Shipping/`
 
@@ -618,7 +622,7 @@ Catatan:
   - tracking publik via invoice
 
 - `archive-product.php`
-  - archive default `vmp_product`
+  - archive default `store_product`
   - filter query string native
   - cocok untuk Beaver Themer
 
@@ -703,8 +707,8 @@ Catatan:
 ### Produk
 
 1. Member input produk dari dashboard
-2. `Actions.php` simpan post `vmp_product`
-3. `ProductFields.php` simpan meta produk
+2. `Actions.php` simpan post `store_product`
+3. helper field produk dari `vd-store` simpan meta produk
 4. `ProductController.php` expose produk ke katalog/frontend
 
 ### Cart
@@ -712,12 +716,12 @@ Catatan:
 1. User klik add to cart
 2. `frontend.js` hit REST cart
 3. `CartController.php` proses request
-4. `CartRepository.php` simpan item
-5. jika user login, cart tersimpan di `vmp_cart_items` dan tetap terbawa lintas device
-6. jika guest, cart tersimpan di cookie `vmp_guest_cart`
+4. `CartRepository.php` delegasi ke service cart core `vd-store`
+5. raw cart canonical disimpan di tabel `store_carts`
+6. grouping seller marketplace disimpan sebagai snapshot di `marketplace_snapshot`
 
 Catatan:
-- merge cart guest ke cart user saat login belum ada
+- source of truth cart sekarang ada di core, bukan lagi user meta / cookie legacy addon
 
 ### Checkout
 
@@ -726,11 +730,14 @@ Catatan:
 3. alamat default diisi dari profil customer
 4. user bisa pakai kupon bila valid
 5. user pilih service ongkir per seller atau COD jika tersedia di kota tujuan
-6. `CheckoutController.php` buat `vmp_order`
-7. jika metode pembayaran `duitku` dipilih dan plugin gateway aktif:
-   - marketplace membuat invoice Duitku
-   - payment URL disimpan ke meta order
-   - buyer diarahkan ke halaman pembayaran Duitku
+6. `CheckoutController.php` buat order canonical `store_order` lewat core
+7. addon lalu menambah metadata marketplace:
+   - shipping group per seller
+   - status marketplace
+   - notifikasi seller
+8. jika metode pembayaran `duitku` dipilih:
+   - inisialisasi payment dilakukan oleh core `vd-store`
+   - addon hanya menyinkronkan metadata/status marketplace
 
 ### Order per toko
 

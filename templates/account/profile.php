@@ -1,22 +1,16 @@
 <?php
-$customer_name = (string) get_user_meta($current_user_id, 'first_name', true);
-$customer_phone = (string) get_user_meta($current_user_id, 'vmp_member_phone', true);
-$customer_address = (string) get_user_meta($current_user_id, 'vmp_member_address', true);
-$customer_subdistrict = (string) get_user_meta($current_user_id, 'vmp_member_subdistrict', true);
-$customer_city = (string) get_user_meta($current_user_id, 'vmp_member_city', true);
-$customer_province = (string) get_user_meta($current_user_id, 'vmp_member_province', true);
-$customer_subdistrict_id = (string) get_user_meta($current_user_id, 'vmp_member_subdistrict_id', true);
-$customer_city_id = (string) get_user_meta($current_user_id, 'vmp_member_city_id', true);
-$customer_province_id = (string) get_user_meta($current_user_id, 'vmp_member_province_id', true);
-$customer_postcode = (string) get_user_meta($current_user_id, 'vmp_member_postcode', true);
-$customer_email = '';
-$customer_user = get_userdata($current_user_id);
-if ($customer_user) {
-    $customer_email = (string) $customer_user->user_email;
-}
-if ($customer_name === '' && $customer_user && $customer_user->display_name !== '') {
-    $customer_name = (string) $customer_user->display_name;
-}
+$member_profile = (new \VelocityMarketplace\Modules\Profile\ProfileService())->get_member_profile($current_user_id);
+$customer_name = (string) ($member_profile['name'] ?? '');
+$customer_phone = (string) ($member_profile['phone'] ?? '');
+$customer_address = (string) ($member_profile['address'] ?? '');
+$customer_subdistrict = (string) ($member_profile['subdistrict_name'] ?? '');
+$customer_city = (string) ($member_profile['city_name'] ?? '');
+$customer_province = (string) ($member_profile['province_name'] ?? '');
+$customer_subdistrict_id = (string) ($member_profile['subdistrict_id'] ?? '');
+$customer_city_id = (string) ($member_profile['city_id'] ?? '');
+$customer_province_id = (string) ($member_profile['province_id'] ?? '');
+$customer_postcode = (string) ($member_profile['postcode'] ?? '');
+$customer_email = (string) ($member_profile['email'] ?? '');
 $location_state = [
     'province_id' => $customer_province_id,
     'province_name' => $customer_province,

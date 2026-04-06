@@ -9,12 +9,12 @@ use VelocityMarketplace\Support\Settings;
 
 class CartRepository
 {
-    const COOKIE_NAME = 'vmp_guest_cart';
-    const USER_META_KEY = 'vmp_cart_items';
-
     public function get_cart_data()
     {
-        $items = $this->is_logged_in() ? $this->get_items_from_user_meta() : $this->get_items_from_cookie();
+        $core = $this->core_service();
+        $raw_items = $core->get_raw_items();
+        $items = $this->hydrate_items($raw_items);
+        $snapshot = $this->resolve_marketplace_snapshot($core, $raw_items, $items);
 
         $total = 0;
         $count = 0;
@@ -27,6 +27,8 @@ class CartRepository
             'items' => array_values($items),
             'total' => (float) $total,
             'count' => (int) $count,
+            'seller_groups' => $this->format_seller_groups($snapshot),
+            'marketplace_snapshot' => $snapshot,
         ];
     }
 
@@ -48,97 +50,15 @@ class CartRepository
             );
         }
 
-        if ($this->is_logged_in()) {
-            $this->upsert_user_meta_item($product_id, $qty, $options, $cart_key);
-        } else {
-            $this->upsert_cookie_item($product_id, $qty, $options, $cart_key);
-        }
+        $core = $this->core_service();
+        $core->upsert_item($product_id, $qty, ProductData::normalize_options($product_id, $options), $cart_key);
 
         return true;
     }
 
     public function clear()
     {
-        if ($this->is_logged_in()) {
-            delete_user_meta(get_current_user_id(), self::USER_META_KEY);
-            return;
-        }
-
-        $this->write_cookie_cart([]);
-    }
-
-    private function is_logged_in()
-    {
-        return is_user_logged_in();
-    }
-
-    private function get_items_from_user_meta()
-    {
-        $value = get_user_meta(get_current_user_id(), self::USER_META_KEY, true);
-        if (!is_array($value)) {
-            return [];
-        }
-        return $this->hydrate_items($value);
-    }
-
-    private function upsert_user_meta_item($product_id, $qty, $options, $cart_key = '')
-    {
-        $cart = get_user_meta(get_current_user_id(), self::USER_META_KEY, true);
-        if (!is_array($cart)) {
-            $cart = [];
-        }
-        $normalized_options = ProductData::normalize_options($product_id, $options);
-        $key = $this->cart_key($product_id, $normalized_options);
-        $current_key = ($cart_key !== '' && isset($cart[$cart_key])) ? $cart_key : $key;
-
-        if ($qty <= 0) {
-            unset($cart[$current_key]);
-            update_user_meta(get_current_user_id(), self::USER_META_KEY, $cart);
-            return;
-        }
-
-        if ($current_key !== $key) {
-            unset($cart[$current_key]);
-        }
-
-        $cart[$key] = [
-            'id' => (int) $product_id,
-            'qty' => (int) $qty,
-            'options' => $normalized_options,
-        ];
-        update_user_meta(get_current_user_id(), self::USER_META_KEY, $cart);
-    }
-
-    private function get_items_from_cookie()
-    {
-        $cart = $this->read_cookie_cart();
-        return $this->hydrate_items($cart);
-    }
-
-    private function upsert_cookie_item($product_id, $qty, $options, $cart_key = '')
-    {
-        $options = ProductData::normalize_options($product_id, is_array($options) ? $options : []);
-        $cart = $this->read_cookie_cart();
-        $key = $this->cart_key($product_id, $options);
-        $current_key = ($cart_key !== '' && isset($cart[$cart_key])) ? $cart_key : $key;
-
-        if ($qty <= 0) {
-            unset($cart[$current_key]);
-            $this->write_cookie_cart($cart);
-            return;
-        }
-
-        if ($current_key !== $key) {
-            unset($cart[$current_key]);
-        }
-
-        $cart[$key] = [
-            'id' => (int) $product_id,
-            'qty' => (int) $qty,
-            'options' => $options,
-        ];
-
-        $this->write_cookie_cart($cart);
+        $this->core_service()->clear();
     }
 
     private function cart_key($product_id, $options = [])
@@ -158,7 +78,12 @@ class CartRepository
 
             $product_id = isset($row['id']) ? (int) $row['id'] : 0;
             $qty = isset($row['qty']) ? (int) $row['qty'] : 0;
-            $options = isset($row['options']) && is_array($row['options']) ? $row['options'] : [];
+            $options = [];
+            if (isset($row['options']) && is_array($row['options'])) {
+                $options = $row['options'];
+            } elseif (isset($row['opts']) && is_array($row['opts'])) {
+                $options = $row['opts'];
+            }
 
             if ($product_id <= 0 || $qty <= 0) {
                 continue;
@@ -180,7 +105,7 @@ class CartRepository
             $subtotal = $price * $qty;
 
             $item = [
-                'cart_key' => is_string($row_key) ? $row_key : '',
+                'cart_key' => $this->cart_key($product_id, $options),
                 'id' => $product_id,
                 'title' => $product['title'],
                 'link' => $product['link'],
@@ -235,48 +160,109 @@ class CartRepository
         return 'Toko #' . $seller_id;
     }
 
-    private function read_cookie_cart()
+    private function core_service()
     {
-        if (!isset($_COOKIE[self::COOKIE_NAME]) || !is_string($_COOKIE[self::COOKIE_NAME])) {
-            return [];
-        }
-
-        $decoded = json_decode(wp_unslash($_COOKIE[self::COOKIE_NAME]), true);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        return $decoded;
+        return new \WpStore\Domain\Cart\CartService();
     }
 
-    private function write_cookie_cart($cart)
+    private function resolve_marketplace_snapshot($core, $raw_items, $items)
     {
-        $cart = is_array($cart) ? $cart : [];
-        $value = wp_json_encode($cart);
-        $expire = time() + (30 * DAY_IN_SECONDS);
-        $_COOKIE[self::COOKIE_NAME] = $value;
+        $raw_items = is_array($raw_items) ? array_values($raw_items) : [];
+        $hash = $core->raw_cart_hash($raw_items);
+        $snapshot = $core->get_marketplace_snapshot();
 
-        $paths = [defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/'];
-        if (defined('SITECOOKIEPATH') && SITECOOKIEPATH && !in_array(SITECOOKIEPATH, $paths, true)) {
-            $paths[] = SITECOOKIEPATH;
+        if (
+            is_array($snapshot)
+            && !empty($snapshot)
+            && isset($snapshot['cart_hash'])
+            && (string) $snapshot['cart_hash'] === $hash
+        ) {
+            return $snapshot;
         }
 
-        $domain = defined('COOKIE_DOMAIN') && COOKIE_DOMAIN ? COOKIE_DOMAIN : '';
-        $options = [
-            'expires' => $expire,
-            'secure' => is_ssl(),
-            'httponly' => true,
-            'samesite' => 'Lax',
+        $snapshot = $this->build_marketplace_snapshot($raw_items, $items);
+        $snapshot['cart_hash'] = $hash;
+        $core->write_marketplace_snapshot($snapshot);
+
+        return $snapshot;
+    }
+
+    private function build_marketplace_snapshot($raw_items, $items)
+    {
+        $groups = [];
+        $order = [];
+
+        foreach ((array) $items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $seller_id = isset($item['seller_id']) ? (int) $item['seller_id'] : 0;
+            if (!isset($groups[$seller_id])) {
+                $groups[$seller_id] = [
+                    'seller_id' => $seller_id,
+                    'subtotal' => 0.0,
+                    'items_count' => 0,
+                    'weight_kg' => 0.0,
+                    'weight_grams' => 0,
+                    'item_keys' => [],
+                ];
+                $order[] = $seller_id;
+            }
+
+            $qty = (int) ($item['qty'] ?? 0);
+            $weight = (float) ($item['weight'] ?? 0);
+            $subtotal = (float) ($item['subtotal'] ?? 0);
+            $groups[$seller_id]['subtotal'] += $subtotal;
+            $groups[$seller_id]['items_count'] += $qty;
+            $groups[$seller_id]['weight_kg'] += ($weight * $qty);
+            $groups[$seller_id]['weight_grams'] += (int) round(($weight * $qty) * 1000);
+            $item_key = (string) ($item['cart_key'] ?? '');
+            if ($item_key !== '') {
+                $groups[$seller_id]['item_keys'][] = $item_key;
+            }
+        }
+
+        $normalized_groups = [];
+        foreach ($order as $seller_id) {
+            if (!isset($groups[$seller_id])) {
+                continue;
+            }
+            $groups[$seller_id]['subtotal'] = (float) $groups[$seller_id]['subtotal'];
+            $groups[$seller_id]['weight_kg'] = (float) $groups[$seller_id]['weight_kg'];
+            $normalized_groups[] = $groups[$seller_id];
+        }
+
+        return [
+            'schema_version' => 1,
+            'generated_at' => current_time('mysql'),
+            'source' => [
+                'core' => 'vd-store',
+                'addon' => 'vd-marketplace',
+            ],
+            'groups' => array_values($normalized_groups),
+            'group_count' => count($normalized_groups),
+            'cart_hash' => md5(wp_json_encode(array_values((array) $raw_items))),
         ];
+    }
 
-        if ($domain !== '') {
-            $options['domain'] = $domain;
+    private function format_seller_groups($snapshot)
+    {
+        $groups = isset($snapshot['groups']) && is_array($snapshot['groups']) ? $snapshot['groups'] : [];
+        $formatted = [];
+
+        foreach ($groups as $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+
+            $seller_id = isset($group['seller_id']) ? (int) $group['seller_id'] : 0;
+            $group['seller_name'] = $this->seller_name($seller_id);
+            $group['seller_url'] = $seller_id > 0 ? Settings::store_profile_url($seller_id) : '';
+            $formatted[] = $group;
         }
 
-        foreach ($paths as $path) {
-            $options['path'] = $path;
-            setcookie(self::COOKIE_NAME, $value, $options);
-        }
+        return array_values($formatted);
     }
 }
 

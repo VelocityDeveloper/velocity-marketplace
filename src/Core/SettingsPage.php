@@ -2,8 +2,6 @@
 
 namespace VelocityMarketplace\Core;
 
-use VelocityMarketplace\Support\Settings;
-
 class SettingsPage
 {
     private $page_hook = '';
@@ -73,7 +71,6 @@ class SettingsPage
             'restUrl' => esc_url_raw(rest_url('velocity-marketplace/v1/settings')),
             'nonce' => wp_create_nonce('wp_rest'),
             'initialSettings' => $service->get_settings_payload(),
-            'popularBanks' => Settings::popular_bank_labels(),
         ]);
     }
 
@@ -85,6 +82,7 @@ class SettingsPage
 
         $service = new SettingsService();
         $settings_payload = $service->get_settings_payload();
+        $core_settings_url = admin_url('edit.php?post_type=store_product&page=wp-store-settings');
         $editor_settings = [
             'textarea_rows' => 14,
             'media_buttons' => false,
@@ -267,9 +265,15 @@ class SettingsPage
                     <p x-text="saveError"></p>
                 </div>
 
+                <div class="notice notice-info inline">
+                    <p>
+                        <?php echo esc_html__('Pengaturan inti toko sekarang mengikuti VD Store.', 'velocity-marketplace'); ?>
+                        <a href="<?php echo esc_url($core_settings_url); ?>"><?php echo esc_html__('Buka Pengaturan Toko', 'velocity-marketplace'); ?></a>
+                    </p>
+                </div>
+
                 <div class="vmp-settings-tabs" role="tablist" aria-label="<?php echo esc_attr__('Pengaturan Marketplace', 'velocity-marketplace'); ?>">
                     <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'general' }" @click="setTab('general')"><?php echo esc_html__('Pengaturan Umum', 'velocity-marketplace'); ?></button>
-                    <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'bank' }" @click="setTab('bank')"><?php echo esc_html__('Pengaturan Bank', 'velocity-marketplace'); ?></button>
                     <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'email' }" @click="setTab('email')"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></button>
                 </div>
 
@@ -278,140 +282,17 @@ class SettingsPage
                         <table class="form-table" role="presentation">
                             <tbody>
                                 <tr>
-                                    <th scope="row"><label for="vmp_currency"><?php echo esc_html__('Mata Uang', 'velocity-marketplace'); ?></label></th>
-                                    <td>
-                                        <select id="vmp_currency" x-model="form.currency">
-                                            <option value="IDR">IDR</option>
-                                            <option value="USD">USD</option>
-                                        </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row"><label for="vmp_currency_symbol"><?php echo esc_html__('Simbol Mata Uang', 'velocity-marketplace'); ?></label></th>
-                                    <td>
-                                        <input id="vmp_currency_symbol" type="text" class="regular-text" x-model="form.currency_symbol">
-                                        <p class="description"><?php echo esc_html__('Contoh: Rp, $, USD.', 'velocity-marketplace'); ?></p>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row"><label for="vmp_default_order_status"><?php echo esc_html__('Status Pesanan Default', 'velocity-marketplace'); ?></label></th>
-                                    <td>
-                                        <select id="vmp_default_order_status" x-model="form.default_order_status">
-                                            <option value="pending_payment"><?php echo esc_html__('Menunggu Pembayaran', 'velocity-marketplace'); ?></option>
-                                            <option value="pending_verification"><?php echo esc_html__('Pending Verification', 'velocity-marketplace'); ?></option>
-                                            <option value="processing"><?php echo esc_html__('Processing', 'velocity-marketplace'); ?></option>
-                                            <option value="shipped"><?php echo esc_html__('Shipped', 'velocity-marketplace'); ?></option>
-                                            <option value="completed"><?php echo esc_html__('Completed', 'velocity-marketplace'); ?></option>
-                                            <option value="cancelled"><?php echo esc_html__('Cancelled', 'velocity-marketplace'); ?></option>
-                                            <option value="refunded"><?php echo esc_html__('Refunded', 'velocity-marketplace'); ?></option>
-                                        </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row"><?php echo esc_html__('Metode Pembayaran Aktif', 'velocity-marketplace'); ?></th>
-                                    <td>
-                                        <label><input type="checkbox" value="bank" x-model="form.payment_methods"> <?php echo esc_html__('Bank Transfer', 'velocity-marketplace'); ?></label><br>
-                                        <template x-if="gateways.duitku">
-                                            <label><input type="checkbox" value="duitku" x-model="form.payment_methods"> Duitku</label>
-                                        </template>
-                                        <template x-if="!gateways.duitku">
-                                            <div class="description"><?php echo esc_html__('Duitku tidak tersedia karena plugin gateway belum aktif atau belum dikonfigurasi.', 'velocity-marketplace'); ?></div>
-                                        </template>
-                                        <br>
-                                        <label><input type="checkbox" value="paypal" x-model="form.payment_methods"> PayPal</label><br>
-                                        <label><input type="checkbox" value="cod" x-model="form.payment_methods"> COD</label>
-                                    </td>
-                                </tr>
-                                <tr>
                                     <th scope="row"><label for="vmp_seller_product_status"><?php echo esc_html__('Status Produk Member Baru', 'velocity-marketplace'); ?></label></th>
                                     <td>
                                         <select id="vmp_seller_product_status" x-model="form.seller_product_status">
                                             <option value="pending"><?php echo esc_html__('Menunggu Review', 'velocity-marketplace'); ?></option>
                                             <option value="publish"><?php echo esc_html__('Publish Immediately', 'velocity-marketplace'); ?></option>
                                         </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th scope="row"><label for="vmp_shipping_api_key"><?php echo esc_html__('API Key Pengiriman', 'velocity-marketplace'); ?></label></th>
-                                    <td>
-                                        <input id="vmp_shipping_api_key" type="text" class="regular-text" x-model="form.shipping_api_key">
-                                        <p class="description"><?php echo esc_html__('Digunakan untuk memuat data lokasi, menghitung ongkir, dan mengambil informasi pelacakan pengiriman.', 'velocity-marketplace'); ?></p>
+                                        <p class="description"><?php echo esc_html__('Pengaturan ini khusus alur seller marketplace.', 'velocity-marketplace'); ?></p>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-
-                <div class="vmp-settings-panel" :class="{ 'is-active': activeTab === 'bank' }">
-                    <div class="vmp-settings-card">
-                        <h2 class="vmp-bank-settings__title"><?php echo esc_html__('Rekening Transfer Bank', 'velocity-marketplace'); ?></h2>
-                        <p class="vmp-bank-settings__desc"><?php echo esc_html__('Rekening pada bagian ini digunakan sebagai tujuan pembayaran saat pembeli memilih transfer bank.', 'velocity-marketplace'); ?></p>
-
-                        <div class="vmp-bank-settings__section">
-                            <h3 class="vmp-bank-settings__section-title"><?php echo esc_html__('Rekening Bank Populer', 'velocity-marketplace'); ?></h3>
-                            <div class="vmp-bank-settings__toolbar">
-                                <p class="description"><?php echo esc_html__('Pilih bank dari daftar populer, lalu isi nomor rekening dan nama pemilik rekening.', 'velocity-marketplace'); ?></p>
-                                <button type="button" class="button button-secondary" @click="addPopularBank()"><?php echo esc_html__('Tambah Rekening Populer', 'velocity-marketplace'); ?></button>
-                            </div>
-                            <p class="vmp-bank-settings__empty" x-show="!form.popular_bank_accounts.length"><?php echo esc_html__('Belum ada rekening bank populer yang ditambahkan.', 'velocity-marketplace'); ?></p>
-                            <div class="vmp-bank-settings__rows">
-                                <template x-for="(row, index) in form.popular_bank_accounts" :key="'popular-' + index">
-                                    <div class="vmp-bank-settings__row">
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Nama Bank', 'velocity-marketplace'); ?></label>
-                                            <select :value="row.bank_code || ''" @change="row.bank_code = $event.target.value">
-                                                <option value=""><?php echo esc_html__('Select bank', 'velocity-marketplace'); ?></option>
-                                                <template x-for="bank in popularBankEntries" :key="bank.code">
-                                                    <option :value="bank.code" :selected="(row.bank_code || '') === bank.code" x-text="bank.label"></option>
-                                                </template>
-                                            </select>
-                                        </div>
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Nomor Rekening', 'velocity-marketplace'); ?></label>
-                                            <input type="text" class="regular-text" x-model="row.account_number" placeholder="<?php echo esc_attr__('Contoh: 1234567890', 'velocity-marketplace'); ?>">
-                                        </div>
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Atas Nama', 'velocity-marketplace'); ?></label>
-                                            <input type="text" class="regular-text" x-model="row.account_holder" placeholder="<?php echo esc_attr__('Contoh: PT Velocity Marketplace', 'velocity-marketplace'); ?>">
-                                        </div>
-                                        <div class="vmp-bank-settings__row-actions">
-                                            <button type="button" class="button-link-delete" @click="removePopularBank(index)"><?php echo esc_html__('Hapus', 'velocity-marketplace'); ?></button>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-
-                        <div class="vmp-bank-settings__section">
-                            <h3 class="vmp-bank-settings__section-title"><?php echo esc_html__('Rekening Bank Lainnya', 'velocity-marketplace'); ?></h3>
-                            <div class="vmp-bank-settings__toolbar">
-                                <p class="description"><?php echo esc_html__('Tambahkan rekening dari bank di luar daftar populer jika diperlukan.', 'velocity-marketplace'); ?></p>
-                                <button type="button" class="button button-secondary" @click="addCustomBank()"><?php echo esc_html__('Tambah Rekening Lainnya', 'velocity-marketplace'); ?></button>
-                            </div>
-                            <p class="vmp-bank-settings__empty" x-show="!form.custom_bank_accounts.length"><?php echo esc_html__('Belum ada rekening bank lainnya yang ditambahkan.', 'velocity-marketplace'); ?></p>
-                            <div class="vmp-bank-settings__rows">
-                                <template x-for="(row, index) in form.custom_bank_accounts" :key="'custom-' + index">
-                                    <div class="vmp-bank-settings__row">
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Nama Bank', 'velocity-marketplace'); ?></label>
-                                            <input type="text" class="regular-text" x-model="row.bank_name" placeholder="<?php echo esc_attr__('Masukkan nama bank lainnya', 'velocity-marketplace'); ?>">
-                                        </div>
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Nomor Rekening', 'velocity-marketplace'); ?></label>
-                                            <input type="text" class="regular-text" x-model="row.account_number" placeholder="<?php echo esc_attr__('Contoh: 1234567890', 'velocity-marketplace'); ?>">
-                                        </div>
-                                        <div class="vmp-bank-settings__field">
-                                            <label><?php echo esc_html__('Atas Nama', 'velocity-marketplace'); ?></label>
-                                            <input type="text" class="regular-text" x-model="row.account_holder" placeholder="<?php echo esc_attr__('Contoh: PT Velocity Marketplace', 'velocity-marketplace'); ?>">
-                                        </div>
-                                        <div class="vmp-bank-settings__row-actions">
-                                            <button type="button" class="button-link-delete" @click="removeCustomBank(index)"><?php echo esc_html__('Hapus', 'velocity-marketplace'); ?></button>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

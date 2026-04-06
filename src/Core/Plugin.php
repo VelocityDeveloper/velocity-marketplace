@@ -16,19 +16,10 @@ class Plugin
         $upgrade = new Upgrade();
         $upgrade->register();
 
-        $post_types = new PostTypes();
-        $post_types->register();
-
-        $product_fields = new \VelocityMarketplace\Modules\Product\ProductFields();
-        $product_fields->register();
-
         $duitku_callback_listener = new \VelocityMarketplace\Modules\Payment\DuitkuCallbackListener();
         $duitku_callback_listener->register();
 
         if (is_admin()) {
-            $meta_box = new \VelocityMarketplace\Modules\Product\ProductMetaBox();
-            $meta_box->register();
-
             $order_admin = new \VelocityMarketplace\Modules\Order\OrderAdmin();
             $order_admin->register();
 
@@ -69,11 +60,17 @@ class Plugin
         $shipping = new \VelocityMarketplace\Modules\Shipping\ShippingController();
         add_action('rest_api_init', [$shipping, 'register_routes']);
 
+        $messages = new \VelocityMarketplace\Modules\Message\MessageController();
+        add_action('rest_api_init', [$messages, 'register_routes']);
+
         $coupon = new \VelocityMarketplace\Modules\Coupon\CouponController();
         add_action('rest_api_init', [$coupon, 'register_routes']);
 
         $profile = new \VelocityMarketplace\Modules\Profile\ProfileController();
         add_action('rest_api_init', [$profile, 'register_routes']);
+
+        $notifications = new \VelocityMarketplace\Modules\Notification\NotificationController();
+        add_action('rest_api_init', [$notifications, 'register_routes']);
 
         $settings = new \VelocityMarketplace\Core\SettingsController();
         add_action('rest_api_init', [$settings, 'register_routes']);
@@ -92,9 +89,6 @@ class Plugin
 
         $shortcode = new \VelocityMarketplace\Frontend\Shortcode();
         $shortcode->register();
-
-        $wp_store_bridge = new \VelocityMarketplace\Compat\WpStoreBridge($shortcode);
-        $wp_store_bridge->register();
 
         $account = new \VelocityMarketplace\Modules\Account\Account();
         $account->register();

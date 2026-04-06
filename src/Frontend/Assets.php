@@ -112,14 +112,6 @@ class Assets
             );
 
             wp_enqueue_script(
-                'velocity-marketplace-dashboard-js',
-                VMP_URL . 'assets/js/dashboard.js',
-                [],
-                VMP_VERSION,
-                true
-            );
-
-            wp_enqueue_script(
                 'velocity-marketplace-media-js',
                 VMP_URL . 'assets/js/media.js',
                 [],
@@ -133,11 +125,10 @@ class Assets
             }
         }
 
-        $pages = get_option(VMP_PAGES_OPTION, []);
-        $catalog_url = $this->resolve_page_url($pages, 'katalog', '/catalog/');
-        $cart_url = $this->resolve_page_url($pages, 'keranjang', '/cart/');
-        $checkout_url = $this->resolve_page_url($pages, 'checkout', '/checkout/');
-        $profile_url = $this->resolve_page_url($pages, 'myaccount', '/account/');
+        $catalog_url = Settings::catalog_url();
+        $cart_url = Settings::cart_url();
+        $checkout_url = Settings::checkout_url();
+        $profile_url = Settings::profile_url();
         $currency = Settings::currency();
         $currency_symbol = Settings::currency_symbol();
         $payment_methods = Settings::payment_methods();
@@ -180,20 +171,20 @@ class Assets
         }
 
         $user_id = get_current_user_id();
-        $user = get_userdata($user_id);
+        $profile = (new \VelocityMarketplace\Modules\Profile\ProfileService())->get_member_profile($user_id);
 
         return [
-            'name' => (string) get_user_meta($user_id, 'first_name', true) ?: ($user && $user->display_name !== '' ? (string) $user->display_name : ''),
-            'email' => $user ? (string) $user->user_email : '',
-            'phone' => (string) get_user_meta($user_id, 'vmp_member_phone', true),
-            'address' => (string) get_user_meta($user_id, 'vmp_member_address', true),
-            'postal_code' => (string) get_user_meta($user_id, 'vmp_member_postcode', true),
-            'destination_province_id' => (string) get_user_meta($user_id, 'vmp_member_province_id', true),
-            'destination_province_name' => (string) get_user_meta($user_id, 'vmp_member_province', true),
-            'destination_city_id' => (string) get_user_meta($user_id, 'vmp_member_city_id', true),
-            'destination_city_name' => (string) get_user_meta($user_id, 'vmp_member_city', true),
-            'destination_subdistrict_id' => (string) get_user_meta($user_id, 'vmp_member_subdistrict_id', true),
-            'destination_subdistrict_name' => (string) get_user_meta($user_id, 'vmp_member_subdistrict', true),
+            'name' => (string) ($profile['name'] ?? ''),
+            'email' => (string) ($profile['email'] ?? ''),
+            'phone' => (string) ($profile['phone'] ?? ''),
+            'address' => (string) ($profile['address'] ?? ''),
+            'postal_code' => (string) ($profile['postcode'] ?? ''),
+            'destination_province_id' => (string) ($profile['province_id'] ?? ''),
+            'destination_province_name' => (string) ($profile['province_name'] ?? ''),
+            'destination_city_id' => (string) ($profile['city_id'] ?? ''),
+            'destination_city_name' => (string) ($profile['city_name'] ?? ''),
+            'destination_subdistrict_id' => (string) ($profile['subdistrict_id'] ?? ''),
+            'destination_subdistrict_name' => (string) ($profile['subdistrict_name'] ?? ''),
         ];
     }
 
@@ -206,7 +197,7 @@ class Assets
             ];
         }
 
-        if (is_post_type_archive(Contract::PRODUCT_POST_TYPE) || is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE) || is_singular(Contract::PRODUCT_POST_TYPE) || is_singular(Contract::LEGACY_PRODUCT_POST_TYPE)) {
+        if (is_post_type_archive(Contract::PRODUCT_POST_TYPE) || is_singular(Contract::PRODUCT_POST_TYPE)) {
             return [
                 'enabled' => true,
                 'profile' => false,
@@ -215,9 +206,9 @@ class Assets
 
         if (is_page()) {
             global $post;
-            $pages = get_option(VMP_PAGES_OPTION, []);
-            if ($post && is_array($pages) && in_array((int) $post->ID, array_map('intval', $pages), true)) {
-                $profile_page_id = !empty($pages['myaccount']) ? (int) $pages['myaccount'] : 0;
+            $managed_page_ids = Settings::managed_page_ids();
+            if ($post && in_array((int) $post->ID, $managed_page_ids, true)) {
+                $profile_page_id = Settings::profile_page_id();
 
                 return [
                     'enabled' => true,
@@ -228,15 +219,12 @@ class Assets
             if ($post && isset($post->post_content)) {
                 $content = (string) $post->post_content;
                 $enabled = $this->content_has_any_shortcode($content, [
-                    'vmp_catalog',
                     'wp_store_catalog',
                     'wp_store_shop',
                     'vmp_products',
                     'vmp_product_card',
                     'wp_store_thumbnail',
-                    'vmp_thumbnail',
                     'wp_store_price',
-                    'vmp_price',
                     'wp_store_add_to_cart',
                     'vmp_add_to_cart',
                     'wp_store_add_to_wishlist',
@@ -288,18 +276,6 @@ class Assets
         }
 
         return false;
-    }
-
-    private function resolve_page_url($pages, $key, $fallback)
-    {
-        if (is_array($pages) && isset($pages[$key])) {
-            $url = get_permalink((int) $pages[$key]);
-            if ($url) {
-                return $url;
-            }
-        }
-
-        return site_url($fallback);
     }
 
     private function frontend_script_dependencies($base = [], $needs_theme_bootstrap = false)

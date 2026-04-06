@@ -98,7 +98,7 @@ $status_badge_class = static function ($status) {
                                                 <?php else : ?>
                                                     <div class="small text-muted mt-1"><?php echo esc_html__('Bukti pembayaran belum diunggah.', 'velocity-marketplace'); ?></div>
                                                 <?php endif; ?>
-                                                <?php $buyer_contact_id = isset($customer['user_id']) ? (int) $customer['user_id'] : (int) get_post_meta($order_id, 'vmp_user_id', true); ?>
+                                                <?php $buyer_contact_id = isset($customer['user_id']) ? (int) $customer['user_id'] : \VelocityMarketplace\Modules\Order\OrderData::buyer_id($order_id); ?>
                                                 <?php if ($buyer_contact_id > 0) : ?>
                                                     <div class="mt-2">
                                                         <a href="<?php echo esc_url(add_query_arg(['tab' => 'messages', 'message_to' => $buyer_contact_id, 'message_order' => $order_id])); ?>" class="btn btn-sm btn-outline-dark"><?php echo esc_html__('Kirim Pesan ke Pembeli', 'velocity-marketplace'); ?></a>

@@ -7,7 +7,7 @@ if ($pp <= 0) {
 }
 
 $categories = get_terms([
-    'taxonomy' => 'vmp_product_cat',
+    'taxonomy' => 'store_product_cat',
     'hide_empty' => false,
 ]);
 $product_query = new ProductQuery();
@@ -111,38 +111,7 @@ $sort_options = $product_query->sort_options();
     <div class="row g-3" x-show="!loading && items.length > 0">
         <template x-for="item in items" :key="item.id">
             <div class="col-6 col-md-4 col-lg-3">
-                <div class="card h-100 shadow-sm border-0">
-                    <a :href="item.link" class="vmp-thumb-wrap">
-                        <img :src="item.image || placeholder" class="card-img-top vmp-thumb" :alt="item.title">
-                    </a>
-                    <div class="card-body d-flex flex-column">
-                        <h3 class="card-title h6 mb-1" x-text="item.title"></h3>
-                        <div class="small text-muted mb-2" x-show="item.label" x-text="item.label"></div>
-                        <div class="fw-semibold text-danger mb-1" x-text="formatPrice(item.price)"></div>
-                        <div class="small text-muted mb-1" x-show="item.seller_city" x-text="item.seller_city"></div>
-                        <div class="small text-muted mb-1" x-show="Number(item.sold_count || 0) > 0" x-text="(item.sold_count || 0) + ' <?php echo esc_js(__('terjual', 'velocity-marketplace')); ?>'"></div>
-                        <div class="small text-muted mb-1" x-text="stockText(item.stock)"></div>
-                        <template x-if="item.rating_html">
-                            <div class="mb-3" x-html="item.rating_html"></div>
-                        </template>
-                        <template x-if="!item.rating_html">
-                            <div class="small text-muted mb-3"><?php echo esc_html__('Belum ada ulasan', 'velocity-marketplace'); ?></div>
-                        </template>
-                        <div class="mt-auto d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-dark flex-grow-1" @click="addToCart(item)"><?php echo esc_html__('Tambah Keranjang', 'velocity-marketplace'); ?></button>
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-outline-secondary vmp-wishlist-button"
-                                :class="{ 'is-active': isWishlisted(item.id) }"
-                                @click="toggleWishlist(item)"
-                                title="<?php echo esc_attr__('Wishlist', 'velocity-marketplace'); ?>"
-                                :aria-pressed="isWishlisted(item.id) ? 'true' : 'false'"
-                                aria-label="<?php echo esc_attr__('Wishlist', 'velocity-marketplace'); ?>"
-                                x-html="wishlistIcon(isWishlisted(item.id))"
-                            ></button>
-                        </div>
-                    </div>
-                </div>
+                <div x-html="item.card_html || ''"></div>
             </div>
         </template>
     </div>

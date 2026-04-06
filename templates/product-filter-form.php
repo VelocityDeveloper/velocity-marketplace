@@ -3,12 +3,12 @@ use VelocityMarketplace\Modules\Product\ProductQuery;
 
 $filters = isset($filters) && is_array($filters) ? $filters : (new ProductQuery())->normalize_filters($_GET);
 $categories = isset($categories) && is_array($categories) ? $categories : get_terms([
-    'taxonomy' => 'vmp_product_cat',
+    'taxonomy' => 'store_product_cat',
     'hide_empty' => false,
 ]);
 $product_query = new ProductQuery();
 $sort_options = isset($sort_options) && is_array($sort_options) ? $sort_options : $product_query->sort_options();
-$action_url = isset($action_url) && is_string($action_url) && $action_url !== '' ? $action_url : get_post_type_archive_link('vmp_product');
+$action_url = isset($action_url) && is_string($action_url) && $action_url !== '' ? $action_url : get_post_type_archive_link('store_product');
 $form_class = isset($form_class) ? (string) $form_class : '';
 ?>
 <form

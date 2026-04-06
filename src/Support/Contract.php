@@ -9,29 +9,24 @@ class Contract
     const COUPON_POST_TYPE = 'store_coupon';
     const PRODUCT_TAXONOMY = 'store_product_cat';
 
-    const LEGACY_PRODUCT_POST_TYPE = 'vmp_product';
-    const LEGACY_ORDER_POST_TYPE = 'vmp_order';
-    const LEGACY_COUPON_POST_TYPE = 'vmp_coupon';
-    const LEGACY_PRODUCT_TAXONOMY = 'vmp_product_cat';
-
     public static function product_post_types()
     {
-        return [self::PRODUCT_POST_TYPE, self::LEGACY_PRODUCT_POST_TYPE];
+        return [self::PRODUCT_POST_TYPE];
     }
 
     public static function order_post_types()
     {
-        return [self::ORDER_POST_TYPE, self::LEGACY_ORDER_POST_TYPE];
+        return [self::ORDER_POST_TYPE];
     }
 
     public static function coupon_post_types()
     {
-        return [self::COUPON_POST_TYPE, self::LEGACY_COUPON_POST_TYPE];
+        return [self::COUPON_POST_TYPE];
     }
 
     public static function product_taxonomies()
     {
-        return [self::PRODUCT_TAXONOMY, self::LEGACY_PRODUCT_TAXONOMY];
+        return [self::PRODUCT_TAXONOMY];
     }
 
     public static function is_product_post_type($post_type)

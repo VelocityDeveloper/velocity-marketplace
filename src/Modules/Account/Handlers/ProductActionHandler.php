@@ -2,10 +2,10 @@
 
 namespace VelocityMarketplace\Modules\Account\Handlers;
 
+use WpStore\Domain\Product\ProductFields;
 use VelocityMarketplace\Modules\Account\Account;
 use VelocityMarketplace\Modules\Captcha\CaptchaBridge;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
-use VelocityMarketplace\Modules\Product\ProductFields;
 use VelocityMarketplace\Modules\Product\ProductMeta;
 use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;

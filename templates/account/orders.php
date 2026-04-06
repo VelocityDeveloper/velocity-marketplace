@@ -3,25 +3,32 @@ use VelocityMarketplace\Modules\Order\OrderData;
 use VelocityMarketplace\Modules\Review\RatingRenderer;
 use VelocityMarketplace\Modules\Review\ReviewRepository;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
+    $payment_labels = [
+        'bank' => __('Bank Transfer', 'velocity-marketplace'),
+        'qris' => 'QRIS',
+        'duitku' => 'Duitku',
+        'paypal' => 'PayPal',
+        'cod' => 'COD',
+    ];
     $transfer_captcha_html = \VelocityMarketplace\Modules\Captcha\CaptchaBridge::render();
     $invoice = isset($_GET['invoice']) ? sanitize_text_field((string) wp_unslash($_GET['invoice'])) : '';
     if ($invoice !== '') {
         $query = new \WP_Query([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => 1,
             'meta_query' => [
                 'relation' => 'AND',
-                ['key' => 'vmp_user_id', 'value' => (string) $current_user_id, 'compare' => '='],
+                ['key' => '_store_order_user_id', 'value' => (string) $current_user_id, 'compare' => '='],
                 ['key' => 'vmp_invoice', 'value' => $invoice, 'compare' => '='],
             ],
         ]);
     } else {
         $query = new \WP_Query([
-            'post_type' => 'vmp_order',
+            'post_type' => 'store_order',
             'post_status' => 'publish',
             'posts_per_page' => 50,
-            'meta_key' => 'vmp_user_id',
+            'meta_key' => '_store_order_user_id',
             'meta_value' => (string) $current_user_id,
             'orderby' => 'date',
             'order' => 'DESC',
@@ -35,7 +42,7 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
         $query->the_post();
         $order_id = get_the_ID();
         $invoice_meta = (string) get_post_meta($order_id, 'vmp_invoice', true);
-        $items = get_post_meta($order_id, 'vmp_items', true);
+        $items = OrderData::get_items($order_id);
         $total = (float) get_post_meta($order_id, 'vmp_total', true);
         $status = (string) get_post_meta($order_id, 'vmp_status', true);
         $payment = (string) get_post_meta($order_id, 'vmp_payment_method', true);
@@ -53,6 +60,7 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
         $transfer_proof_url = $transfer_proof_id > 0 ? wp_get_attachment_url($transfer_proof_id) : '';
         $gateway_payment_url = (string) get_post_meta($order_id, 'vmp_gateway_payment_url', true);
         $gateway_status = (string) get_post_meta($order_id, 'vmp_gateway_status', true);
+        $qris = \VelocityMarketplace\Support\Settings::qris_details();
         $bank_accounts = get_post_meta($order_id, 'vmp_bank_accounts', true);
         if (!is_array($bank_accounts)) {
             $bank_accounts = [];
@@ -88,7 +96,7 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
                 <div class="col-md-6">
                     <div class="d-flex flex-wrap align-items-center gap-2"><strong><?php echo esc_html__('Invoice:', 'velocity-marketplace'); ?></strong> <span><?php echo esc_html($invoice_meta); ?></span><button type="button" class="btn btn-sm btn-outline-secondary" data-vmp-copy-text="<?php echo esc_attr($invoice_meta); ?>" data-vmp-copy-success="<?php echo esc_attr__('Invoice Tersalin', 'velocity-marketplace'); ?>"><?php echo esc_html__('Salin Invoice', 'velocity-marketplace'); ?></button></div>
                     <div><strong><?php echo esc_html__('Tanggal:', 'velocity-marketplace'); ?></strong> <?php echo esc_html(get_the_date('d-m-Y H:i', $order_id)); ?></div>
-                    <div><strong><?php echo esc_html__('Metode Pembayaran:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($payment !== '' ? strtoupper($payment) : '-'); ?></div>
+                    <div><strong><?php echo esc_html__('Metode Pembayaran:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($payment !== '' ? ($payment_labels[$payment] ?? strtoupper($payment)) : '-'); ?></div>
                 </div>
                 <div class="col-md-6">
                     <div><strong><?php echo esc_html__('Tujuan:', 'velocity-marketplace'); ?></strong> <?php echo esc_html($destination_label !== '' ? $destination_label : '-'); ?></div>
@@ -100,6 +108,17 @@ use VelocityMarketplace\Modules\Shipping\ShippingController;
             <?php if ($payment === 'duitku' && $gateway_payment_url !== '' && $gateway_status !== 'paid') : ?>
                 <div class="mt-3">
                     <a href="<?php echo esc_url($gateway_payment_url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-primary"><?php echo esc_html__('Lanjutkan Pembayaran Duitku', 'velocity-marketplace'); ?></a>
+                </div>
+            <?php endif; ?>
+            <?php if ($payment === 'qris') : ?>
+                <div class="mt-4 border-top pt-3">
+                    <h3 class="h6 mb-2"><?php echo esc_html__('Pembayaran QRIS', 'velocity-marketplace'); ?></h3>
+                    <div class="small text-muted mb-3"><?php echo esc_html($qris['label']); ?></div>
+                    <?php if (!empty($qris['image_url'])) : ?>
+                        <img src="<?php echo esc_url($qris['image_url']); ?>" alt="<?php echo esc_attr__('QRIS', 'velocity-marketplace'); ?>" class="img-fluid rounded border" style="max-width:280px;">
+                    <?php else : ?>
+                        <div class="alert alert-warning mb-0"><?php echo esc_html__('QRIS belum dikonfigurasi di Pengaturan Toko VD Store.', 'velocity-marketplace'); ?></div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
             <?php if (!empty($shipping_groups)) : ?>

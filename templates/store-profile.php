@@ -50,7 +50,7 @@ $message_url = is_user_logged_in()
     : wp_login_url(add_query_arg(['tab' => 'messages', 'message_to' => $seller_id], Settings::profile_url()));
 
 $product_count_query = new \WP_Query([
-    'post_type' => 'vmp_product',
+    'post_type' => 'store_product',
     'post_status' => 'publish',
     'posts_per_page' => 1,
     'author' => $seller_id,
@@ -59,7 +59,7 @@ $product_count_query = new \WP_Query([
 $total_products = (int) $product_count_query->found_posts;
 
 $product_query = new \WP_Query([
-    'post_type' => 'vmp_product',
+    'post_type' => 'store_product',
     'post_status' => 'publish',
     'posts_per_page' => 12,
     'author' => $seller_id,

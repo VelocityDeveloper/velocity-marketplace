@@ -14,31 +14,6 @@ class Installer
     private function create_default_pages()
     {
         $pages = [
-            'katalog' => [
-                'title' => __('Katalog', 'velocity-marketplace'),
-                'slug' => 'catalog',
-                'content' => '[vmp_catalog]',
-            ],
-            'keranjang' => [
-                'title' => __('Keranjang', 'velocity-marketplace'),
-                'slug' => 'cart',
-                'content' => '[vmp_cart_page]',
-            ],
-            'checkout' => [
-                'title' => __('Checkout', 'velocity-marketplace'),
-                'slug' => 'checkout',
-                'content' => '[vmp_checkout]',
-            ],
-            'myaccount' => [
-                'title' => __('Akun', 'velocity-marketplace'),
-                'slug' => 'account',
-                'content' => '[vmp_profile]',
-            ],
-            'tracking' => [
-                'title' => __('Lacak Pesanan', 'velocity-marketplace'),
-                'slug' => 'order-tracking',
-                'content' => '[vmp_tracking]',
-            ],
             'toko' => [
                 'title' => __('Toko', 'velocity-marketplace'),
                 'slug' => 'store',
@@ -50,6 +25,7 @@ class Installer
         if (!is_array($stored)) {
             $stored = [];
         }
+        $stored = array_intersect_key($stored, $pages);
 
         foreach ($pages as $slug => $page) {
             $page_slug = isset($page['slug']) ? sanitize_title((string) $page['slug']) : sanitize_title((string) $slug);
@@ -85,12 +61,12 @@ class Installer
         }
 
         $defaults = [
-            'currency' => 'IDR',
-            'currency_symbol' => 'Rp',
             'default_order_status' => 'pending_payment',
-            'payment_methods' => ['bank', 'duitku', 'paypal'],
             'seller_product_status' => 'publish',
-            'bank_accounts' => [],
+            'email_admin_recipient' => '',
+            'email_template_admin_order' => '',
+            'email_template_customer_order' => '',
+            'email_template_status_update' => '',
         ];
 
         update_option(VMP_SETTINGS_OPTION, array_merge($defaults, $current));

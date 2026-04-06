@@ -2,16 +2,16 @@
 
 namespace VelocityMarketplace\Modules\Checkout;
 
+use WpStore\Domain\Order\OrderService;
+use WpStore\Domain\Payment\PaymentService;
 use VelocityMarketplace\Modules\Captcha\CaptchaBridge;
 use VelocityMarketplace\Modules\Cart\CartRepository;
 use VelocityMarketplace\Modules\Coupon\CouponService;
 use VelocityMarketplace\Modules\Email\EmailTemplateService;
 use VelocityMarketplace\Modules\Notification\NotificationRepository;
 use VelocityMarketplace\Modules\Order\OrderData;
-use VelocityMarketplace\Modules\Payment\DuitkuGateway;
 use VelocityMarketplace\Modules\Product\ProductMeta;
 use VelocityMarketplace\Modules\Shipping\ShippingController;
-use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -127,6 +127,7 @@ class CheckoutController
             $total_weight += ($weight * $qty);
 
             $order_items[] = [
+                'cart_key' => isset($item['cart_key']) ? sanitize_text_field((string) $item['cart_key']) : '',
                 'product_id' => $product_id,
                 'title' => isset($item['title']) ? sanitize_text_field($item['title']) : get_the_title($product_id),
                 'qty' => $qty,
@@ -204,21 +205,49 @@ class CheckoutController
         $total = max(0, ($subtotal - $coupon_product_discount) + ($shipping_total - $coupon_shipping_discount));
         $invoice = $this->generate_invoice();
         $user_id = is_user_logged_in() ? get_current_user_id() : 0;
-
-        $order_id = wp_insert_post([
-            'post_type' => Contract::ORDER_POST_TYPE,
-            'post_status' => 'publish',
+        $primary_shipping = $this->resolve_core_shipping_summary($shipping_groups, $shipping_total);
+        $core_order = (new OrderService())->create_order([
             'post_title' => $invoice . ' - ' . $customer['name'],
+            'order_number' => $invoice,
+            'name' => $customer['name'],
+            'email' => $customer['email'],
+            'phone' => $customer['phone'],
+            'user_id' => $user_id,
+            'address' => $customer['address'],
+            'province_id' => $shipping_destination['province_destination_id'],
+            'province_name' => $shipping_destination['province_destination_name'],
+            'city_id' => $shipping_destination['city_destination_id'],
+            'city_name' => $shipping_destination['city_destination_name'],
+            'subdistrict_id' => $shipping_destination['subdistrict_destination_id'],
+            'subdistrict_name' => $shipping_destination['subdistrict_destination_name'],
+            'postal_code' => $customer['postal_code'],
+            'notes' => $notes,
+            'items' => $order_items,
+            'payment_method' => OrderData::core_payment_method($payment_method),
+            'status' => OrderData::core_status($order_status),
+            'shipping_courier' => $primary_shipping['courier'],
+            'shipping_service' => $primary_shipping['service'],
+            'shipping_cost' => (float) $shipping_total,
+            'coupon_code' => $coupon_code,
+            'discount_type' => 'nominal',
+            'discount_value' => (float) $coupon_discount,
+            'discount_amount' => (float) $coupon_discount,
+            'order_total' => (float) $total,
+            'init_payment' => false,
         ]);
+
+        if (is_wp_error($core_order)) {
+            return new WP_REST_Response(['message' => $core_order->get_error_message()], 500);
+        }
+
+        $order_id = (int) ($core_order['order_id'] ?? 0);
 
         if (is_wp_error($order_id) || !$order_id) {
             return new WP_REST_Response(['message' => 'Gagal menyimpan pesanan.'], 500);
         }
 
         update_post_meta($order_id, 'vmp_invoice', $invoice);
-        update_post_meta($order_id, 'vmp_user_id', (int) $user_id);
         update_post_meta($order_id, 'vmp_customer', $customer);
-        update_post_meta($order_id, 'vmp_items', $order_items);
         update_post_meta($order_id, 'vmp_subtotal', (float) $subtotal);
         update_post_meta($order_id, 'vmp_shipping', $shipping);
         update_post_meta($order_id, 'vmp_shipping_groups', $shipping_groups);
@@ -236,10 +265,23 @@ class CheckoutController
         update_post_meta($order_id, 'vmp_coupon_product_discount', (float) $coupon_product_discount);
         update_post_meta($order_id, 'vmp_coupon_shipping_discount', (float) $coupon_shipping_discount);
         update_post_meta($order_id, 'vmp_coupon_discount', (float) $coupon_discount);
+        OrderData::sync_core_status($order_id, $order_status);
 
         $redirect = $this->resolve_profile_url($invoice);
         if ($payment_method === 'duitku') {
-            $duitku_invoice = $this->create_duitku_invoice($order_id, $invoice, $customer, $order_items, $total);
+            $duitku_invoice = (new PaymentService())->initialize_order_payment($order_id, 'duitku', [
+                'order_number' => $invoice,
+                'name' => $customer['name'],
+                'email' => $customer['email'],
+                'phone' => $customer['phone'],
+                'address' => $customer['address'],
+                'postal_code' => $customer['postal_code'],
+                'city_name' => $shipping_destination['city_destination_name'],
+                'user_id' => $user_id,
+                'items' => $order_items,
+                'return_url' => Settings::tracking_url((string) $invoice),
+                'expiry_period' => 60,
+            ], $total);
             if (is_wp_error($duitku_invoice)) {
                 wp_delete_post($order_id, true);
 
@@ -249,12 +291,12 @@ class CheckoutController
             }
 
             update_post_meta($order_id, 'vmp_gateway_name', 'duitku');
-            update_post_meta($order_id, 'vmp_gateway_reference', sanitize_text_field((string) ($duitku_invoice['reference'] ?? '')));
-            update_post_meta($order_id, 'vmp_gateway_payment_url', esc_url_raw((string) ($duitku_invoice['paymentUrl'] ?? '')));
-            update_post_meta($order_id, 'vmp_gateway_status', sanitize_text_field((string) ($duitku_invoice['statusCode'] ?? 'pending')));
+            update_post_meta($order_id, 'vmp_gateway_reference', sanitize_text_field((string) ($duitku_invoice['payment_token'] ?? $duitku_invoice['reference'] ?? '')));
+            update_post_meta($order_id, 'vmp_gateway_payment_url', esc_url_raw((string) ($duitku_invoice['payment_url'] ?? $duitku_invoice['paymentUrl'] ?? '')));
+            update_post_meta($order_id, 'vmp_gateway_status', sanitize_text_field((string) (($duitku_invoice['extra']['gateway_status'] ?? null) ?: ($duitku_invoice['statusCode'] ?? 'pending'))));
             update_post_meta($order_id, 'vmp_status', 'pending_payment');
-
-            $redirect = (string) ($duitku_invoice['paymentUrl'] ?? $redirect);
+            OrderData::sync_core_status($order_id, 'pending_payment');
+            $redirect = (string) ($duitku_invoice['payment_url'] ?? $duitku_invoice['paymentUrl'] ?? $redirect);
         }
 
         foreach ($order_items as $line) {
@@ -343,65 +385,6 @@ class CheckoutController
         ], Settings::profile_url());
     }
 
-    private function create_duitku_invoice($order_id, $invoice, array $customer, array $order_items, $total)
-    {
-        if (!DuitkuGateway::is_available()) {
-            return new \WP_Error('duitku_not_available', __('Gateway Duitku tidak tersedia. Pilih metode pembayaran lain.', 'velocity-marketplace'));
-        }
-
-        $email = $customer['email'] !== '' && is_email($customer['email'])
-            ? $customer['email']
-            : 'customer+' . strtolower($invoice) . '@example.com';
-
-        $phone = preg_replace('/[^0-9]/', '', (string) ($customer['phone'] ?? ''));
-        $customer_name = trim((string) ($customer['name'] ?? ''));
-        $name_parts = preg_split('/\s+/', $customer_name);
-        $first_name = !empty($name_parts[0]) ? (string) $name_parts[0] : 'Customer';
-        $last_name = count($name_parts) > 1 ? implode(' ', array_slice($name_parts, 1)) : '';
-
-        $address = [
-            'firstName' => $first_name,
-            'lastName' => $last_name,
-            'address' => (string) ($customer['address'] ?? ''),
-            'city' => '',
-            'postalCode' => (string) ($customer['postal_code'] ?? ''),
-            'phone' => $phone,
-            'countryCode' => 'ID',
-        ];
-
-        $item_details = [];
-        foreach ($order_items as $line) {
-            $item_details[] = [
-                'name' => (string) ($line['title'] ?? 'Produk'),
-                'price' => (int) round((float) ($line['price'] ?? 0)),
-                'quantity' => max(1, (int) ($line['qty'] ?? 1)),
-            ];
-        }
-
-        return DuitkuGateway::create_invoice([
-            'paymentAmount' => (int) round((float) $total),
-            'merchantOrderId' => (string) $invoice,
-            'productDetails' => 'Pembayaran pesanan ' . $invoice,
-            'additionalParam' => (string) $order_id,
-            'merchantUserInfo' => (string) get_post_meta($order_id, 'vmp_user_id', true),
-            'customerVaName' => $customer_name !== '' ? $customer_name : 'Customer',
-            'email' => $email,
-            'phoneNumber' => $phone,
-            'itemDetails' => $item_details,
-            'customerDetail' => [
-                'firstName' => $first_name,
-                'lastName' => $last_name,
-                'email' => $email,
-                'phoneNumber' => $phone,
-                'billingAddress' => $address,
-                'shippingAddress' => $address,
-            ],
-            'callbackUrl' => '',
-            'returnUrl' => Settings::tracking_url((string) $invoice),
-            'expiryPeriod' => 60,
-        ]);
-    }
-
     private function build_shipping_groups($submitted_groups, $destination, $context_data, $order_items, $payment_method, $initial_status = 'pending_payment')
     {
         $payment_method = sanitize_key((string) $payment_method);
@@ -414,6 +397,7 @@ class CheckoutController
         }
 
         $items_by_seller = [];
+        $items_by_key = [];
         foreach ($order_items as $line) {
             $seller_id = isset($line['seller_id']) ? (int) $line['seller_id'] : 0;
             if ($seller_id <= 0) {
@@ -423,6 +407,10 @@ class CheckoutController
                 $items_by_seller[$seller_id] = [];
             }
             $items_by_seller[$seller_id][] = $line;
+            $cart_key = isset($line['cart_key']) ? (string) $line['cart_key'] : '';
+            if ($cart_key !== '') {
+                $items_by_key[$cart_key] = $line;
+            }
         }
 
         $submitted_map = [];
@@ -484,6 +472,21 @@ class CheckoutController
                 return new \WP_Error('invalid_shipping_selection', 'Pilihan ongkir per toko belum lengkap.');
             }
 
+            $group_items = [];
+            $context_item_keys = isset($context_group['item_keys']) && is_array($context_group['item_keys'])
+                ? array_values(array_filter(array_map('strval', $context_group['item_keys'])))
+                : [];
+            if (!empty($context_item_keys)) {
+                foreach ($context_item_keys as $item_key) {
+                    if (isset($items_by_key[$item_key])) {
+                        $group_items[] = $items_by_key[$item_key];
+                    }
+                }
+            }
+            if (empty($group_items)) {
+                $group_items = array_values($items_by_seller[$seller_id] ?? []);
+            }
+
             $result[] = [
                 'seller_id' => $seller_id,
                 'seller_name' => isset($context_group['seller_name']) ? (string) $context_group['seller_name'] : '',
@@ -497,7 +500,8 @@ class CheckoutController
                 'weight_grams' => isset($context_group['weight_grams']) ? (int) $context_group['weight_grams'] : 0,
                 'subtotal' => isset($context_group['subtotal']) ? (float) $context_group['subtotal'] : 0,
                 'items_count' => isset($context_group['items_count']) ? (int) $context_group['items_count'] : 0,
-                'items' => array_values($items_by_seller[$seller_id] ?? []),
+                'items' => array_values($group_items),
+                'item_keys' => $context_item_keys,
                 'destination' => $destination,
                 'cod_enabled' => !empty($context_group['cod_enabled']),
                 'cod_city_ids' => $cod_city_ids,
@@ -510,6 +514,25 @@ class CheckoutController
         }
 
         return $result;
+    }
+
+    private function resolve_core_shipping_summary(array $shipping_groups, $shipping_total)
+    {
+        $shipping_total = (float) $shipping_total;
+        if (count($shipping_groups) === 1) {
+            $group = $shipping_groups[0];
+            return [
+                'courier' => sanitize_text_field((string) ($group['courier'] ?? '')),
+                'service' => sanitize_text_field((string) ($group['service'] ?? '')),
+                'cost' => $shipping_total,
+            ];
+        }
+
+        return [
+            'courier' => !empty($shipping_groups) ? 'multi_seller' : '',
+            'service' => !empty($shipping_groups) ? 'Multi Seller' : '',
+            'cost' => $shipping_total,
+        ];
     }
 }
 

@@ -10,215 +10,90 @@ class OrderAdmin
 {
     public function register()
     {
-        add_filter('manage_edit-store_order_columns', [$this, 'columns']);
-        add_action('manage_store_order_posts_custom_column', [$this, 'column_content'], 10, 2);
-        add_filter('manage_edit-store_order_sortable_columns', [$this, 'sortable_columns']);
-        add_action('pre_get_posts', [$this, 'handle_sorting']);
         add_action('add_meta_boxes', [$this, 'add_meta_boxes']);
-        add_action('save_post_store_order', [$this, 'save_meta_box']);
+        add_action('save_post_store_order', [$this, 'save_meta_box'], 20);
+        add_action('wp_store_order_status_updated', [$this, 'sync_from_core_status'], 10, 3);
+        add_action('updated_post_meta', [$this, 'watch_core_status_meta'], 10, 4);
+        add_action('added_post_meta', [$this, 'watch_core_status_meta'], 10, 4);
         add_action('admin_head-post.php', [$this, 'admin_styles']);
         add_action('admin_head-post-new.php', [$this, 'admin_styles']);
-    }
-
-    public function columns($columns)
-    {
-        return [
-            'cb' => $columns['cb'] ?? '<input type="checkbox" />',
-            'title' => 'Judul',
-            'invoice' => 'Invoice',
-            'customer' => 'Pembeli',
-            'payment' => 'Pembayaran',
-            'total' => 'Total',
-            'status' => 'Status',
-            'date' => 'Tanggal',
-        ];
-    }
-
-    public function column_content($column, $post_id)
-    {
-        if ($column === 'invoice') {
-            $invoice = (string) get_post_meta($post_id, 'vmp_invoice', true);
-            echo esc_html($invoice !== '' ? $invoice : '-');
-            return;
-        }
-
-        if ($column === 'customer') {
-            $customer = get_post_meta($post_id, 'vmp_customer', true);
-            $customer = is_array($customer) ? $customer : [];
-            $name = (string) ($customer['name'] ?? '');
-            $phone = (string) ($customer['phone'] ?? '');
-            $email = (string) ($customer['email'] ?? '');
-
-            echo esc_html($name !== '' ? $name : '-');
-            if ($phone !== '') {
-                echo '<br><small>' . esc_html($phone) . '</small>';
-            }
-            if ($email !== '') {
-                echo '<br><small>' . esc_html($email) . '</small>';
-            }
-            return;
-        }
-
-        if ($column === 'payment') {
-            $payment = (string) get_post_meta($post_id, 'vmp_payment_method', true);
-            echo esc_html($payment !== '' ? strtoupper($payment) : '-');
-            return;
-        }
-
-        if ($column === 'total') {
-            echo esc_html($this->money((float) get_post_meta($post_id, 'vmp_total', true)));
-            return;
-        }
-
-        if ($column === 'status') {
-            $status = (string) get_post_meta($post_id, 'vmp_status', true);
-            echo esc_html(OrderData::status_label($status));
-        }
-    }
-
-    public function sortable_columns($columns)
-    {
-        $columns['invoice'] = 'invoice';
-        $columns['total'] = 'total';
-        $columns['status'] = 'status';
-        return $columns;
-    }
-
-    public function handle_sorting($query)
-    {
-        if (!is_admin() || !$query->is_main_query()) {
-            return;
-        }
-
-        if (($query->get('post_type') ?? '') !== 'store_order') {
-            return;
-        }
-
-        $orderby = (string) $query->get('orderby');
-        if ($orderby === 'invoice') {
-            $query->set('meta_key', 'vmp_invoice');
-            $query->set('orderby', 'meta_value');
-        } elseif ($orderby === 'total') {
-            $query->set('meta_key', 'vmp_total');
-            $query->set('orderby', 'meta_value_num');
-        } elseif ($orderby === 'status') {
-            $query->set('meta_key', 'vmp_status');
-            $query->set('orderby', 'meta_value');
-        }
     }
 
     public function add_meta_boxes()
     {
         add_meta_box(
-            'vmp-order-summary',
-            'Detail Pesanan',
-            [$this, 'render_summary_meta_box'],
-            'store_order',
-            'normal',
-            'high'
-        );
-
-        add_meta_box(
-            'vmp-order-items',
-            'Item Pesanan',
-            [$this, 'render_items_meta_box'],
+            'vmp-order-fulfillment',
+            'Marketplace Fulfillment',
+            [$this, 'render_fulfillment_meta_box'],
             'store_order',
             'normal',
             'default'
         );
     }
 
-    public function render_summary_meta_box($post)
+    public function render_fulfillment_meta_box($post)
     {
-        wp_nonce_field('store_order_admin_meta_box', 'store_order_admin_meta_box_nonce');
+        wp_nonce_field('vmp_order_fulfillment_meta_box', 'vmp_order_fulfillment_meta_box_nonce');
 
         $order_id = (int) $post->ID;
         $invoice = (string) get_post_meta($order_id, 'vmp_invoice', true);
-        $status = (string) get_post_meta($order_id, 'vmp_status', true);
-        $payment = (string) get_post_meta($order_id, 'vmp_payment_method', true);
-        $subtotal = (float) get_post_meta($order_id, 'vmp_subtotal', true);
-        $shipping_total = (float) get_post_meta($order_id, 'vmp_shipping_total', true);
-        $total = (float) get_post_meta($order_id, 'vmp_total', true);
-        $coupon_code = (string) get_post_meta($order_id, 'store_coupon_code', true);
-        $coupon_discount = (float) get_post_meta($order_id, 'store_coupon_discount', true);
-        $weight = (float) get_post_meta($order_id, 'vmp_total_weight', true);
-        $created_at = (string) get_post_meta($order_id, 'vmp_created_at', true);
-        $notes = (string) get_post_meta($order_id, 'vmp_notes', true);
-        $customer = get_post_meta($order_id, 'vmp_customer', true);
-        $customer = is_array($customer) ? $customer : [];
+        $core_status = (string) get_post_meta($order_id, '_store_order_status', true);
+        $marketplace_status = (string) get_post_meta($order_id, 'vmp_status', true);
+        $payment = (string) get_post_meta($order_id, '_store_order_payment_method', true);
+        $payment_url = (string) get_post_meta($order_id, '_store_order_payment_url', true);
+        $payment_token = (string) get_post_meta($order_id, '_store_order_payment_token', true);
+        $payment_extra = get_post_meta($order_id, '_store_order_payment_extra', true);
+        $payment_extra = is_array($payment_extra) ? $payment_extra : [];
         $shipping_groups = OrderData::shipping_groups($order_id);
         ?>
         <table class="form-table" role="presentation">
             <tbody>
                 <tr>
-                    <th scope="row">Invoice</th>
+                    <th scope="row">Invoice Marketplace</th>
                     <td><?php echo esc_html($invoice !== '' ? $invoice : '-'); ?></td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="store_order_status">Status Order</label></th>
-                    <td>
-                        <select id="store_order_status" name="store_order_status">
-                            <?php foreach (OrderData::statuses() as $key => $label) : ?>
-                                <option value="<?php echo esc_attr($key); ?>" <?php selected(OrderData::normalize_status($status), $key); ?>><?php echo esc_html($label); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </td>
+                    <th scope="row">Status Core</th>
+                    <td><?php echo esc_html($core_status !== '' ? $core_status : '-'); ?></td>
                 </tr>
                 <tr>
-                    <th scope="row">Pembeli</th>
-                    <td>
-                        <strong><?php echo esc_html((string) ($customer['name'] ?? '-')); ?></strong><br>
-                        <span><?php echo esc_html((string) ($customer['phone'] ?? '-')); ?></span><br>
-                        <span><?php echo esc_html((string) ($customer['email'] ?? '-')); ?></span>
-                    </td>
+                    <th scope="row">Status Marketplace</th>
+                    <td><?php echo esc_html(OrderData::status_label($marketplace_status)); ?></td>
                 </tr>
                 <tr>
-                    <th scope="row">Alamat Pembeli</th>
-                    <td><?php echo nl2br(esc_html((string) ($customer['address'] ?? '-'))); ?></td>
-                </tr>
-                <tr>
-                    <th scope="row">Pembayaran</th>
+                    <th scope="row">Payment Method Core</th>
                     <td><?php echo esc_html($payment !== '' ? strtoupper($payment) : '-'); ?></td>
                 </tr>
-                <tr>
-                    <th scope="row">Subtotal</th>
-                    <td><?php echo esc_html($this->money($subtotal)); ?></td>
-                </tr>
-                <tr>
-                    <th scope="row">Ongkir</th>
-                    <td><?php echo esc_html($this->money($shipping_total)); ?></td>
-                </tr>
-                <tr>
-                    <th scope="row">Total</th>
-                    <td><strong><?php echo esc_html($this->money($total)); ?></strong></td>
-                </tr>
-                <tr>
-                    <th scope="row">Kupon</th>
-                    <td><?php echo esc_html($coupon_code !== '' ? $coupon_code : '-'); ?></td>
-                </tr>
-                <?php if ($coupon_discount > 0) : ?>
+                <?php if ($payment_url !== '') : ?>
                     <tr>
-                        <th scope="row">Diskon Kupon</th>
-                        <td>-<?php echo esc_html($this->money($coupon_discount)); ?></td>
+                        <th scope="row">Payment URL Core</th>
+                        <td><a href="<?php echo esc_url($payment_url); ?>" target="_blank" rel="noopener">Buka</a></td>
                     </tr>
                 <?php endif; ?>
-                <tr>
-                    <th scope="row">Berat Total</th>
-                    <td><?php echo esc_html(number_format($weight, 2, ',', '.') . ' kg'); ?></td>
-                </tr>
-                <tr>
-                    <th scope="row">Dibuat</th>
-                    <td><?php echo esc_html($created_at !== '' ? $created_at : '-'); ?></td>
-                </tr>
-                <tr>
-                    <th scope="row">Catatan Checkout</th>
-                    <td><?php echo $notes !== '' ? nl2br(esc_html($notes)) : '-'; ?></td>
-                </tr>
+                <?php if ($payment_token !== '') : ?>
+                    <tr>
+                        <th scope="row">Payment Token Core</th>
+                        <td><?php echo esc_html($payment_token); ?></td>
+                    </tr>
+                <?php endif; ?>
+                <?php if (!empty($payment_extra['gateway_status']) || !empty($payment_extra['reference'])) : ?>
+                    <tr>
+                        <th scope="row">Gateway Meta</th>
+                        <td>
+                            <?php if (!empty($payment_extra['gateway_status'])) : ?>
+                                <div>Status: <?php echo esc_html((string) $payment_extra['gateway_status']); ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($payment_extra['reference'])) : ?>
+                                <div>Reference: <?php echo esc_html((string) $payment_extra['reference']); ?></div>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
 
         <?php if (!empty($shipping_groups)) : ?>
-            <h4>Pengiriman per Toko</h4>
+            <h4>Shipping Group per Seller</h4>
             <?php foreach ($shipping_groups as $index => $group) : ?>
                 <?php
                 $destination = isset($group['destination']) && is_array($group['destination']) ? $group['destination'] : [];
@@ -261,6 +136,16 @@ class OrderAdmin
                                 <td><?php echo esc_html($this->money((float) ($group['cost'] ?? 0))); ?></td>
                             </tr>
                             <tr>
+                                <th scope="row"><label for="vmp_group_status_<?php echo esc_attr((string) $index); ?>">Status Seller</label></th>
+                                <td>
+                                    <select id="vmp_group_status_<?php echo esc_attr((string) $index); ?>" name="vmp_group_status[<?php echo esc_attr((string) $index); ?>]">
+                                        <?php foreach (OrderData::statuses() as $key => $label) : ?>
+                                            <option value="<?php echo esc_attr($key); ?>" <?php selected(OrderData::shipping_group_status($group, $marketplace_status), $key); ?>><?php echo esc_html($label); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
                                 <th scope="row">Tujuan</th>
                                 <td><?php echo esc_html($destination_text !== '' ? $destination_text : '-'); ?></td>
                             </tr>
@@ -291,62 +176,9 @@ class OrderAdmin
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
+        <?php else : ?>
+            <p class="description">Belum ada shipping group marketplace di order ini.</p>
         <?php endif; ?>
-        <?php
-    }
-
-    public function render_items_meta_box($post)
-    {
-        $items = OrderData::get_items((int) $post->ID);
-
-        if (empty($items)) {
-            echo '<p>Tidak ada item di pesanan ini.</p>';
-            return;
-        }
-        ?>
-        <table class="widefat striped">
-            <thead>
-                <tr>
-                    <th>Produk</th>
-                    <th>Toko</th>
-                    <th>Qty</th>
-                    <th>Harga</th>
-                    <th>Subtotal</th>
-                    <th>Opsi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($items as $item) : ?>
-                    <?php
-                    $seller_id = isset($item['seller_id']) ? (int) $item['seller_id'] : 0;
-                    $seller = $seller_id > 0 ? get_userdata($seller_id) : null;
-                    $seller_name = $seller && $seller->display_name !== '' ? $seller->display_name : ($seller_id > 0 ? 'Seller #' . $seller_id : '-');
-                    $options = isset($item['options']) && is_array($item['options']) ? $item['options'] : [];
-                    ?>
-                    <tr>
-                        <td>
-                            <?php echo esc_html((string) ($item['title'] ?? '-')); ?>
-                            <?php if (!empty($item['id'])) : ?>
-                                <br><small>ID Produk: <?php echo esc_html((string) $item['id']); ?></small>
-                            <?php endif; ?>
-                        </td>
-                        <td><?php echo esc_html($seller_name); ?></td>
-                        <td><?php echo esc_html((string) ((int) ($item['qty'] ?? 0))); ?></td>
-                        <td><?php echo esc_html($this->money((float) ($item['price'] ?? 0))); ?></td>
-                        <td><?php echo esc_html($this->money((float) ($item['subtotal'] ?? 0))); ?></td>
-                        <td>
-                            <?php if (!empty($options)) : ?>
-                                <?php foreach ($options as $key => $value) : ?>
-                                    <div><small><?php echo esc_html(ucfirst((string) $key) . ': ' . (string) $value); ?></small></div>
-                                <?php endforeach; ?>
-                            <?php else : ?>
-                                <small>-</small>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
         <?php
     }
 
@@ -360,24 +192,26 @@ class OrderAdmin
             return;
         }
 
-        $nonce = isset($_POST['store_order_admin_meta_box_nonce']) ? (string) wp_unslash($_POST['store_order_admin_meta_box_nonce']) : '';
-        if ($nonce === '' || !wp_verify_nonce($nonce, 'store_order_admin_meta_box')) {
+        $nonce = isset($_POST['vmp_order_fulfillment_meta_box_nonce']) ? (string) wp_unslash($_POST['vmp_order_fulfillment_meta_box_nonce']) : '';
+        if ($nonce === '' || !wp_verify_nonce($nonce, 'vmp_order_fulfillment_meta_box')) {
+            $this->sync_from_core_status($post_id, (string) get_post_meta($post_id, '_store_order_status', true), 'save_post');
             return;
         }
 
         $previous_status = (string) get_post_meta($post_id, 'vmp_status', true);
-        $status = isset($_POST['store_order_status']) ? (string) wp_unslash($_POST['store_order_status']) : '';
-        $normalized_status = OrderData::normalize_status($status);
-        update_post_meta($post_id, 'vmp_status', $normalized_status);
+        $core_status = (string) get_post_meta($post_id, '_store_order_status', true);
+        $fallback_status = $this->map_core_status_to_marketplace($core_status);
 
         $shipping_groups = OrderData::shipping_groups($post_id);
         if (!empty($shipping_groups)) {
+            $posted_statuses = isset($_POST['vmp_group_status']) && is_array($_POST['vmp_group_status']) ? wp_unslash($_POST['vmp_group_status']) : [];
             $posted_receipts = isset($_POST['vmp_group_receipt_no']) && is_array($_POST['vmp_group_receipt_no']) ? wp_unslash($_POST['vmp_group_receipt_no']) : [];
             $posted_couriers = isset($_POST['vmp_group_receipt_courier']) && is_array($_POST['vmp_group_receipt_courier']) ? wp_unslash($_POST['vmp_group_receipt_courier']) : [];
             $posted_notes = isset($_POST['vmp_group_seller_note']) && is_array($_POST['vmp_group_seller_note']) ? wp_unslash($_POST['vmp_group_seller_note']) : [];
 
             foreach ($shipping_groups as $index => &$group) {
-                $group['status'] = $normalized_status;
+                $group_status = isset($posted_statuses[$index]) ? (string) $posted_statuses[$index] : (string) ($group['status'] ?? $fallback_status);
+                $group['status'] = OrderData::normalize_status($group_status);
                 $receipt_no = sanitize_text_field((string) ($posted_receipts[$index] ?? ''));
                 $receipt_courier = sanitize_text_field((string) ($posted_couriers[$index] ?? ''));
                 $seller_note = sanitize_textarea_field((string) ($posted_notes[$index] ?? ''));
@@ -406,6 +240,9 @@ class OrderAdmin
             }
             unset($group);
             update_post_meta($post_id, 'vmp_shipping_groups', array_values($shipping_groups));
+            $summary_status = OrderData::summarize_shipping_statuses($shipping_groups, $fallback_status);
+            update_post_meta($post_id, 'vmp_status', $summary_status);
+            OrderData::sync_core_status($post_id, $summary_status);
 
             $first_group = $shipping_groups[0] ?? [];
             $first_receipt = (string) ($first_group['receipt_no'] ?? '');
@@ -433,6 +270,7 @@ class OrderAdmin
             delete_post_meta($post_id, 'vmp_receipt_no');
             delete_post_meta($post_id, 'vmp_receipt_courier');
             delete_post_meta($post_id, 'vmp_seller_note');
+            update_post_meta($post_id, 'vmp_status', $fallback_status);
         }
 
         $service = new StarSellerService();
@@ -447,10 +285,64 @@ class OrderAdmin
             $service->recalculate($seller_id);
         }
 
-        $buyer_id = (int) get_post_meta($post_id, 'vmp_user_id', true);
-        if ($buyer_id > 0 && $previous_status !== $normalized_status) {
-            (new EmailTemplateService())->send_customer_status_update($post_id, $normalized_status);
+        $buyer_id = OrderData::buyer_id($post_id);
+        $current_status = (string) get_post_meta($post_id, 'vmp_status', true);
+        if ($buyer_id > 0 && $previous_status !== $current_status) {
+            (new EmailTemplateService())->send_customer_status_update($post_id, $current_status);
         }
+    }
+
+    public function sync_from_core_status($order_id, $core_status, $context = '')
+    {
+        $order_id = (int) $order_id;
+        if ($order_id <= 0 || get_post_type($order_id) !== 'store_order') {
+            return;
+        }
+
+        $mapped_status = $this->map_core_status_to_marketplace((string) $core_status);
+        $previous_status = (string) get_post_meta($order_id, 'vmp_status', true);
+        update_post_meta($order_id, 'vmp_status', $mapped_status);
+
+        $shipping_groups = OrderData::shipping_groups($order_id);
+        if (!empty($shipping_groups)) {
+            foreach ($shipping_groups as $index => $group) {
+                if (!is_array($group)) {
+                    continue;
+                }
+                $shipping_groups[$index]['status'] = $mapped_status;
+            }
+            update_post_meta($order_id, 'vmp_shipping_groups', array_values($shipping_groups));
+        }
+
+        $buyer_id = OrderData::buyer_id($order_id);
+        if ($buyer_id > 0 && $previous_status !== $mapped_status && $context !== 'save_post') {
+            (new EmailTemplateService())->send_customer_status_update($order_id, $mapped_status);
+        }
+    }
+
+    public function watch_core_status_meta($meta_id, $object_id, $meta_key, $meta_value)
+    {
+        if ((string) $meta_key !== '_store_order_status') {
+            return;
+        }
+
+        $this->sync_from_core_status((int) $object_id, (string) $meta_value, 'meta_update');
+    }
+
+    private function map_core_status_to_marketplace($core_status)
+    {
+        $core_status = sanitize_key((string) $core_status);
+        $map = [
+            'pending' => 'pending_payment',
+            'awaiting_payment' => 'pending_payment',
+            'paid' => 'processing',
+            'processing' => 'processing',
+            'shipped' => 'shipped',
+            'completed' => 'completed',
+            'cancelled' => 'cancelled',
+        ];
+
+        return isset($map[$core_status]) ? $map[$core_status] : 'pending_payment';
     }
 
     private function money($value)

@@ -11,6 +11,7 @@ use VelocityMarketplace\Modules\Product\ProductQuery;
 use VelocityMarketplace\Modules\Product\RelatedProducts;
 use VelocityMarketplace\Modules\Product\RecentlyViewed;
 use VelocityMarketplace\Modules\Review\RatingRenderer;
+use VelocityMarketplace\Modules\Wishlist\WishlistRepository;
 use VelocityMarketplace\Support\Contract;
 use VelocityMarketplace\Support\Settings;
 
@@ -20,14 +21,10 @@ class Shortcode
 
     public function register()
     {
-        $this->register_shortcode_aliases(['wp_store_catalog', 'vmp_catalog'], 'render_catalog');
-        $this->register_shortcode_aliases(['wp_store_shop', 'vmp_products'], 'render_products');
+        $this->register_shortcode_aliases(['vmp_products'], 'render_products');
         $this->register_shortcode_aliases(['vmp_product_card'], 'render_product_card');
-        $this->register_shortcode_aliases(['wp_store_thumbnail', 'vmp_thumbnail'], 'render_thumbnail');
-        $this->register_shortcode_aliases(['wp_store_price', 'vmp_price'], 'render_price');
-        $this->register_shortcode_aliases(['wp_store_add_to_cart', 'vmp_add_to_cart'], 'render_add_to_cart');
-        $this->register_shortcode_aliases(['wp_store_add_to_wishlist', 'vmp_add_to_wishlist'], 'render_add_to_wishlist');
-        $this->register_shortcode_aliases(['wp_store_related', 'vmp_related_products'], 'render_related_products');
+        $this->register_shortcode_aliases(['vmp_add_to_cart'], 'render_add_to_cart');
+        $this->register_shortcode_aliases(['vmp_add_to_wishlist'], 'render_add_to_wishlist');
         $this->register_shortcode_aliases(['vmp_recently_viewed'], 'render_recently_viewed');
         $this->register_shortcode_aliases(['vmp_product_gallery'], 'render_product_gallery');
         $this->register_shortcode_aliases(['vmp_product_reviews'], 'render_product_reviews');
@@ -35,16 +32,16 @@ class Shortcode
         add_shortcode('vmp_rating', [$this, 'render_rating']);
         add_shortcode('vmp_review_count', [$this, 'render_review_count']);
         add_shortcode('vmp_sold_count', [$this, 'render_sold_count']);
-        $this->register_shortcode_aliases(['wp_store_cart', 'vmp_cart'], 'render_cart');
-        $this->register_shortcode_aliases(['wp_store_cart_page', 'store_cart', 'vmp_cart_page'], 'render_cart_page');
-        $this->register_shortcode_aliases(['wp_store_checkout', 'store_checkout', 'vmp_checkout'], 'render_checkout');
-        $this->register_shortcode_aliases(['store_customer_profile', 'wp_store_profile', 'vmp_profile'], 'render_profile');
-        $this->register_shortcode_aliases(['wp_store_tracking', 'store_tracking', 'vmp_tracking'], 'render_tracking');
+        $this->register_shortcode_aliases(['vmp_cart'], 'render_cart');
+        $this->register_shortcode_aliases(['vmp_cart_page'], 'render_cart_page');
+        $this->register_shortcode_aliases(['vmp_checkout'], 'render_checkout');
+        $this->register_shortcode_aliases(['vmp_profile'], 'render_profile');
+        $this->register_shortcode_aliases(['vmp_tracking'], 'render_tracking');
         add_shortcode('vmp_store_profile', [$this, 'render_store_profile']);
-        $this->register_shortcode_aliases(['wp_store_filters', 'vmp_product_filter'], 'render_product_filter');
+        $this->register_shortcode_aliases(['vmp_product_filter'], 'render_product_filter');
         add_shortcode('vmp_messages_icon', [$this, 'render_messages_icon']);
         add_shortcode('vmp_notifications_icon', [$this, 'render_notifications_icon']);
-        $this->register_shortcode_aliases(['wp_store_link_profile', 'vmp_profile_icon'], 'render_profile_icon');
+        $this->register_shortcode_aliases(['vmp_profile_icon'], 'render_profile_icon');
 
         add_action('wp_footer', [$this, 'render_cart_drawer_footer'], 30);
     }
@@ -56,9 +53,78 @@ class Shortcode
         }
     }
 
+    private function render_core_shortcode($tag, $atts = [], $map = [])
+    {
+        $tag = sanitize_key((string) $tag);
+        if ($tag === '' || !shortcode_exists($tag)) {
+            return '';
+        }
+
+        $normalized = [];
+        foreach ((array) $atts as $key => $value) {
+            $key = (string) $key;
+            if (isset($map[$key])) {
+                $key = (string) $map[$key];
+            }
+
+            if ($key === '' || is_array($value) || is_object($value) || $value === null) {
+                continue;
+            }
+
+            if (is_bool($value)) {
+                $value = $value ? '1' : '0';
+            }
+
+            $normalized[$key] = (string) $value;
+        }
+
+        $parts = [];
+        foreach ($normalized as $key => $value) {
+            $parts[] = sprintf('%s="%s"', $key, esc_attr($value));
+        }
+
+        $shortcode = '[' . $tag . (!empty($parts) ? ' ' . implode(' ', $parts) : '') . ']';
+        return do_shortcode($shortcode);
+    }
+
+    private function render_core_product_card($item, $extra_html = '', $card_class = '')
+    {
+        if (!class_exists('\WpStore\Frontend\Template')) {
+            return '';
+        }
+
+        $item = is_array($item) ? $item : [];
+        $product_id = isset($item['id']) ? (int) $item['id'] : 0;
+        if ($product_id <= 0) {
+            return '';
+        }
+
+        $core_item = [
+            'id' => $product_id,
+            'title' => (string) ($item['title'] ?? ''),
+            'link' => (string) ($item['link'] ?? get_permalink($product_id)),
+            'image' => (string) ($item['image'] ?? ''),
+            'price' => isset($item['price']) ? (float) $item['price'] : null,
+            'stock' => $item['stock'] ?? null,
+        ];
+
+        return \WpStore\Frontend\Template::render('components/product-card', [
+            'item' => $core_item,
+            'currency' => Settings::currency_symbol(),
+            'view_label' => __('Detail', 'velocity-marketplace'),
+            'extra_html' => $extra_html,
+            'card_class' => $card_class,
+        ]);
+    }
+
     public function render_catalog($atts = [])
     {
         $this->ensure_frontend_assets();
+
+        $core = $this->render_core_shortcode('wp_store_catalog', $atts);
+        if ($core !== '') {
+            return $core;
+        }
 
         $atts = shortcode_atts([
             'per_page' => 12,
@@ -133,6 +199,12 @@ class Shortcode
             return '';
         }
 
+        $extra_html = $this->product_card_extra_html($item);
+        $core = $this->render_core_product_card($item, $extra_html, 'vmp-product-card');
+        if ($core !== '') {
+            return $core;
+        }
+
         return $this->render_product_card_markup($item);
     }
 
@@ -196,6 +268,13 @@ class Shortcode
     {
         $this->ensure_frontend_assets();
 
+        $core = $this->render_core_shortcode('wp_store_related', $atts, [
+            'limit' => 'per_page',
+        ]);
+        if ($core !== '') {
+            return $core;
+        }
+
         $atts = shortcode_atts([
             'id' => 0,
             'limit' => 4,
@@ -244,6 +323,11 @@ class Shortcode
     {
         $this->ensure_frontend_assets();
 
+        $core = $this->render_core_shortcode('wp_store_thumbnail', $atts);
+        if ($core !== '') {
+            return $core;
+        }
+
         $atts = shortcode_atts([
             'id' => 0,
             'size' => 'large',
@@ -272,6 +356,11 @@ class Shortcode
     public function render_price($atts = [])
     {
         $this->ensure_frontend_assets();
+
+        $core = $this->render_core_shortcode('wp_store_price', $atts);
+        if ($core !== '') {
+            return $core;
+        }
 
         $atts = shortcode_atts([
             'id' => 0,
@@ -341,10 +430,7 @@ class Shortcode
 
         $active = false;
         if (is_user_logged_in()) {
-            $wishlist_ids = get_user_meta(get_current_user_id(), 'vmp_wishlist', true);
-            if (is_array($wishlist_ids)) {
-                $active = in_array($product_id, array_map('intval', $wishlist_ids), true);
-            }
+            $active = (new WishlistRepository())->has($product_id, get_current_user_id());
         }
 
         return $this->render_add_to_wishlist_markup(
@@ -490,7 +576,12 @@ class Shortcode
     public function render_tracking($atts = [])
     {
         $this->ensure_frontend_assets();
-        return Template::render('tracking', []);
+        $core = $this->render_core_shortcode('wp_store_tracking', $atts);
+        if ($core !== '') {
+            return $core;
+        }
+
+        return '';
     }
 
     public function render_store_profile($atts = [])
@@ -515,6 +606,11 @@ class Shortcode
     {
         $this->ensure_frontend_assets();
 
+        $core = $this->render_core_shortcode('wp_store_filters', $atts);
+        if ($core !== '') {
+            return $core;
+        }
+
         $atts = shortcode_atts([
             'action' => '',
             'class' => '',
@@ -522,16 +618,10 @@ class Shortcode
 
         $action_url = trim((string) $atts['action']);
         if ($action_url === '') {
-            if (is_post_type_archive(Contract::PRODUCT_POST_TYPE) || is_post_type_archive(Contract::LEGACY_PRODUCT_POST_TYPE)) {
+            if (is_post_type_archive(Contract::PRODUCT_POST_TYPE)) {
                 $action_url = get_post_type_archive_link(Contract::PRODUCT_POST_TYPE);
             } else {
-                $pages = get_option(VMP_PAGES_OPTION, []);
-                if (is_array($pages) && !empty($pages['katalog'])) {
-                    $page_url = get_permalink((int) $pages['katalog']);
-                    $action_url = $page_url ? $page_url : site_url('/catalog/');
-                } else {
-                    $action_url = site_url('/catalog/');
-                }
+                $action_url = Settings::catalog_url();
             }
         }
 
@@ -652,7 +742,7 @@ class Shortcode
         $sort = sanitize_key((string) ($atts['sort'] ?? 'latest'));
 
         $args = [
-            'post_type' => Contract::product_post_types(),
+            'post_type' => Contract::PRODUCT_POST_TYPE,
             'post_status' => 'publish',
             'posts_per_page' => $per_page,
             's' => $search,
@@ -714,12 +804,36 @@ class Shortcode
         $html = '<div class="row g-3 vmp-builder-grid">';
         foreach ($items as $item) {
             $html .= '<div class="' . esc_attr($col_class) . '">';
-            $html .= $this->render_product_card_markup($item);
+            $extra_html = $this->product_card_extra_html($item);
+            $card_html = $this->render_core_product_card($item, $extra_html, 'vmp-product-card');
+            $html .= $card_html !== '' ? $card_html : $this->render_product_card_markup($item);
             $html .= '</div>';
         }
         $html .= '</div>';
 
         return $html;
+    }
+
+    private function product_card_extra_html($item)
+    {
+        $item = is_array($item) ? $item : [];
+        $parts = [];
+
+        if (!empty($item['seller_city'])) {
+            $parts[] = '<div class="small text-muted mb-1">' . esc_html((string) $item['seller_city']) . '</div>';
+        }
+
+        if (!empty($item['sold_count'])) {
+            $parts[] = '<div class="small text-muted mb-1">' . esc_html(sprintf(__('%d terjual', 'velocity-marketplace'), (int) $item['sold_count'])) . '</div>';
+        }
+
+        if (!empty($item['rating_html'])) {
+            $parts[] = '<div class="mb-1">' . $item['rating_html'] . '</div>';
+        } else {
+            $parts[] = '<div class="small text-muted mb-1">' . esc_html__('Belum ada ulasan', 'velocity-marketplace') . '</div>';
+        }
+
+        return implode('', $parts);
     }
 
     private function render_product_card_markup($item)
@@ -732,10 +846,7 @@ class Shortcode
 
         $wishlist_active = false;
         if (is_user_logged_in()) {
-            $wishlist_ids = get_user_meta(get_current_user_id(), 'vmp_wishlist', true);
-            if (is_array($wishlist_ids)) {
-                $wishlist_active = in_array($product_id, array_map('intval', $wishlist_ids), true);
-            }
+            $wishlist_active = (new WishlistRepository())->has($product_id, get_current_user_id());
         }
 
         $stock_text = __('Stok tidak terbatas', 'velocity-marketplace');
@@ -929,15 +1040,7 @@ class Shortcode
 
     private function cart_page_url()
     {
-        $pages = get_option(VMP_PAGES_OPTION, []);
-        if (is_array($pages) && !empty($pages['keranjang'])) {
-            $url = get_permalink((int) $pages['keranjang']);
-            if ($url) {
-                return $url;
-            }
-        }
-
-        return site_url('/cart/');
+        return Settings::cart_url();
     }
 
     private function ensure_frontend_assets()

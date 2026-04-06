@@ -2,7 +2,7 @@
 use VelocityMarketplace\Modules\Order\OrderData;
 use VelocityMarketplace\Modules\Review\StarSellerService;
     $published_products_query = new \WP_Query([
-        'post_type' => 'vmp_product',
+        'post_type' => 'store_product',
         'post_status' => 'publish',
         'author' => $current_user_id,
         'posts_per_page' => 1,

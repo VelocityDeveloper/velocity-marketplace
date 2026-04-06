@@ -40,7 +40,7 @@ class OrderActionHandler extends BaseActionHandler
             ]);
         }
 
-        $buyer_id = (int) get_post_meta($order_id, 'vmp_user_id', true);
+        $buyer_id = OrderData::buyer_id($order_id);
         if ($buyer_id !== get_current_user_id() && !current_user_can('manage_options')) {
             $this->redirect_with([
                 'vmp_error' => 'Pesanan bukan milik akun ini.',
@@ -93,6 +93,7 @@ class OrderActionHandler extends BaseActionHandler
         update_post_meta($order_id, 'vmp_shipping_groups', array_values($shipping_groups));
         $summary_status = OrderData::summarize_shipping_statuses($shipping_groups, $previous_status !== '' ? $previous_status : 'pending_payment');
         update_post_meta($order_id, 'vmp_status', $summary_status);
+        OrderData::sync_core_status($order_id, $summary_status);
 
         $profile_url = Settings::profile_url();
         $repo = new NotificationRepository();
@@ -173,6 +174,7 @@ class OrderActionHandler extends BaseActionHandler
         $previous_status = (string) get_post_meta($order_id, 'vmp_status', true);
         $summary_status = OrderData::summarize_shipping_statuses(is_array($shipping_groups) ? $shipping_groups : [], $previous_status !== '' ? $previous_status : 'pending_payment');
         update_post_meta($order_id, 'vmp_status', $summary_status);
+        OrderData::sync_core_status($order_id, $summary_status);
 
         if ($resi !== '') {
             update_post_meta($order_id, 'vmp_receipt_no', $resi);
@@ -184,7 +186,7 @@ class OrderActionHandler extends BaseActionHandler
             update_post_meta($order_id, 'vmp_seller_note', $seller_note);
         }
 
-        $buyer_id = (int) get_post_meta($order_id, 'vmp_user_id', true);
+        $buyer_id = OrderData::buyer_id($order_id);
         $invoice = (string) get_post_meta($order_id, 'vmp_invoice', true);
         $profile_url = Settings::profile_url();
         if ($buyer_id > 0) {
@@ -233,7 +235,7 @@ class OrderActionHandler extends BaseActionHandler
             }
         }
 
-        $buyer_id = (int) get_post_meta($order_id, 'vmp_user_id', true);
+        $buyer_id = OrderData::buyer_id($order_id);
         if ($buyer_id !== get_current_user_id() && !current_user_can('manage_options')) {
             $this->redirect_with(['vmp_error' => 'Order bukan milik akun ini.', 'tab' => $redirect_tab]);
         }
@@ -265,6 +267,7 @@ class OrderActionHandler extends BaseActionHandler
         $current_status = (string) get_post_meta($order_id, 'vmp_status', true);
         if (!in_array($current_status, ['cancelled', 'completed', 'refunded'], true)) {
             update_post_meta($order_id, 'vmp_status', 'pending_verification');
+            OrderData::sync_core_status($order_id, 'pending_verification');
         }
 
         $shipping_groups = OrderData::shipping_groups($order_id);

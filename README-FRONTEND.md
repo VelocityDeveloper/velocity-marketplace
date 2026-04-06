@@ -49,7 +49,6 @@ Tujuannya:
   - toggle wishlist global
   - galeri produk + lightbox
 
-- `assets/js/dashboard.js`
   - helper kecil dashboard account
   - fokus textarea chat
   - scroll thread chat ke bawah
@@ -98,7 +97,6 @@ Tujuannya:
   - file JS utama: `frontend-ui.js`
 
 - `templates/profile.php`
-  - helper chat ringan via `dashboard.js`
 
 - `src/Core/SettingsPage.php`
   - `x-data="vmpAdminSettingsPage()"`

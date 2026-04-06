@@ -2,10 +2,36 @@
 
 namespace VelocityMarketplace\Support;
 
-use VelocityMarketplace\Modules\Payment\DuitkuGateway;
+use WpStore\Domain\Payment\DuitkuGateway;
+use WpStore\Domain\Payment\PaymentMethodRegistry;
 
 class Settings
 {
+    private static function core_settings()
+    {
+        $settings = get_option('wp_store_settings', []);
+        return is_array($settings) ? $settings : [];
+    }
+
+    private static function core_page_id($key)
+    {
+        $settings = self::core_settings();
+        return !empty($settings[$key]) ? (int) $settings[$key] : 0;
+    }
+
+    private static function core_page_url($key, $fallback = '/')
+    {
+        $page_id = self::core_page_id($key);
+        if ($page_id > 0) {
+            $url = get_permalink($page_id);
+            if ($url) {
+                return $url;
+            }
+        }
+
+        return site_url($fallback);
+    }
+
     public static function all()
     {
         $settings = get_option(VMP_SETTINGS_OPTION, []);
@@ -14,13 +40,8 @@ class Settings
         }
 
         $defaults = [
-            'currency' => 'IDR',
-            'currency_symbol' => 'Rp',
             'default_order_status' => 'pending_payment',
-            'payment_methods' => ['bank'],
             'seller_product_status' => 'publish',
-            'shipping_api_key' => '',
-            'bank_accounts' => [],
             'email_admin_recipient' => '',
             'email_template_admin_order' => '',
             'email_template_customer_order' => '',
@@ -32,46 +53,60 @@ class Settings
 
     public static function currency()
     {
-        $settings = self::all();
-        $currency = strtoupper((string) $settings['currency']);
+        $settings = self::core_settings();
+        $currency = strtoupper((string) ($settings['currency'] ?? ''));
         if (!in_array($currency, ['IDR', 'USD'], true)) {
-            $currency = 'IDR';
+            $symbol = trim((string) ($settings['currency_symbol'] ?? 'Rp'));
+            $currency = in_array($symbol, ['$', 'USD'], true) ? 'USD' : 'IDR';
         }
+
         return $currency;
     }
 
     public static function currency_symbol()
     {
-        $settings = self::all();
-        $symbol = trim((string) $settings['currency_symbol']);
+        $settings = self::core_settings();
+        $symbol = trim((string) ($settings['currency_symbol'] ?? ''));
         if ($symbol !== '') {
             return $symbol;
         }
+
         return self::currency() === 'USD' ? '$' : 'Rp';
     }
 
     public static function payment_methods()
     {
-        $settings = self::all();
+        $settings = self::core_settings();
         $methods = isset($settings['payment_methods']) && is_array($settings['payment_methods'])
             ? array_values(array_unique(array_map('sanitize_key', $settings['payment_methods'])))
-            : ['bank'];
+            : [];
 
-        $allowed = ['bank', 'duitku', 'paypal', 'cod'];
-        $filtered = [];
-        foreach ($methods as $m) {
-            if (in_array($m, $allowed, true)) {
-                $filtered[] = $m;
-            }
+        if (empty($methods)) {
+            $methods = (new PaymentMethodRegistry())->available_methods();
         }
 
-        $filtered = array_values(array_filter($filtered, static function ($method) {
-            if ($method === 'duitku') {
-                return DuitkuGateway::is_available();
-            }
+        $map = [
+            'bank_transfer' => 'bank',
+            'bank' => 'bank',
+            'duitku' => 'duitku',
+            'paypal' => 'paypal',
+            'cod' => 'cod',
+            'qris' => 'qris',
+        ];
 
-            return true;
-        }));
+        $filtered = [];
+        foreach ($methods as $method) {
+            $normalized = isset($map[$method]) ? $map[$method] : '';
+            if ($normalized === '') {
+                continue;
+            }
+            if ($normalized === 'duitku' && !DuitkuGateway::is_available()) {
+                continue;
+            }
+            $filtered[] = $normalized;
+        }
+
+        $filtered = array_values(array_unique($filtered));
 
         return !empty($filtered) ? $filtered : ['bank'];
     }
@@ -91,6 +126,7 @@ class Settings
         if (!in_array($status, $allowed, true)) {
             return 'pending_payment';
         }
+
         return $status;
     }
 
@@ -101,19 +137,28 @@ class Settings
         if (!in_array($status, ['pending', 'publish'], true)) {
             $status = 'publish';
         }
+
         return $status;
     }
 
     public static function profile_url()
     {
-        $pages = get_option(VMP_PAGES_OPTION, []);
-        if (is_array($pages) && !empty($pages['myaccount'])) {
-            $url = get_permalink((int) $pages['myaccount']);
-            if ($url) {
-                return $url;
-            }
-        }
-        return site_url('/account/');
+        return self::core_page_url('page_profile', '/account/');
+    }
+
+    public static function catalog_url()
+    {
+        return self::core_page_url('page_catalog', '/catalog/');
+    }
+
+    public static function cart_url()
+    {
+        return self::core_page_url('page_cart', '/cart/');
+    }
+
+    public static function checkout_url()
+    {
+        return self::core_page_url('page_checkout', '/checkout/');
     }
 
     public static function store_profile_url($seller_id = 0)
@@ -137,14 +182,7 @@ class Settings
 
     public static function tracking_url($invoice = '')
     {
-        $pages = get_option(VMP_PAGES_OPTION, []);
-        $base = '';
-        if (is_array($pages) && !empty($pages['tracking'])) {
-            $base = get_permalink((int) $pages['tracking']);
-        }
-        if (!$base) {
-            $base = site_url('/order-tracking/');
-        }
+        $base = self::core_page_url('page_tracking', '/order-tracking/');
 
         $invoice = trim((string) $invoice);
         if ($invoice !== '') {
@@ -156,8 +194,8 @@ class Settings
 
     public static function shipping_api_key()
     {
-        $settings = self::all();
-        return trim((string) ($settings['shipping_api_key'] ?? ''));
+        $settings = self::core_settings();
+        return trim((string) ($settings['rajaongkir_api_key'] ?? ''));
     }
 
     public static function popular_bank_labels()
@@ -188,10 +226,23 @@ class Settings
 
     public static function bank_accounts()
     {
-        $settings = self::all();
-        $rows = isset($settings['bank_accounts']) && is_array($settings['bank_accounts'])
-            ? $settings['bank_accounts']
+        $settings = self::core_settings();
+        $rows = isset($settings['store_bank_accounts']) && is_array($settings['store_bank_accounts'])
+            ? $settings['store_bank_accounts']
             : [];
+
+        if (empty($rows)) {
+            $legacy_bank_name = trim((string) ($settings['bank_name'] ?? ''));
+            $legacy_bank_account = preg_replace('/[^0-9]/', '', (string) ($settings['bank_account'] ?? ''));
+            $legacy_bank_holder = trim((string) ($settings['bank_holder'] ?? ''));
+            if ($legacy_bank_name !== '' && $legacy_bank_account !== '' && $legacy_bank_holder !== '') {
+                $rows[] = [
+                    'bank_name' => $legacy_bank_name,
+                    'bank_account' => $legacy_bank_account,
+                    'bank_holder' => $legacy_bank_holder,
+                ];
+            }
+        }
 
         $accounts = [];
         foreach ($rows as $row) {
@@ -200,8 +251,8 @@ class Settings
             }
 
             $bank_name = trim((string) ($row['bank_name'] ?? ''));
-            $account_number = preg_replace('/[^0-9]/', '', (string) ($row['account_number'] ?? ''));
-            $account_holder = trim((string) ($row['account_holder'] ?? ''));
+            $account_number = preg_replace('/[^0-9]/', '', (string) ($row['account_number'] ?? $row['bank_account'] ?? ''));
+            $account_holder = trim((string) ($row['account_holder'] ?? $row['bank_holder'] ?? ''));
 
             if ($bank_name === '' || $account_number === '' || $account_holder === '') {
                 continue;
@@ -216,6 +267,20 @@ class Settings
         }
 
         return $accounts;
+    }
+
+    public static function qris_details()
+    {
+        $settings = self::core_settings();
+        $image_id = isset($settings['qris_image_id']) ? absint($settings['qris_image_id']) : 0;
+        $image_url = $image_id > 0 ? wp_get_attachment_image_url($image_id, 'large') : '';
+        $label = trim((string) ($settings['qris_label'] ?? ''));
+
+        return [
+            'image_id' => $image_id,
+            'image_url' => $image_url ?: '',
+            'label' => $label !== '' ? $label : __('Scan QRIS untuk menyelesaikan pembayaran.', 'velocity-marketplace'),
+        ];
     }
 
     public static function courier_labels()
@@ -233,5 +298,29 @@ class Settings
             'rex' => 'REX',
             'ide' => 'IDExpress',
         ];
+    }
+
+    public static function managed_page_ids()
+    {
+        $pages = get_option(VMP_PAGES_OPTION, []);
+        if (!is_array($pages)) {
+            $pages = [];
+        }
+
+        $ids = [
+            self::core_page_id('page_catalog'),
+            self::core_page_id('page_profile'),
+            self::core_page_id('page_cart'),
+            self::core_page_id('page_checkout'),
+            self::core_page_id('page_tracking'),
+            !empty($pages['toko']) ? (int) $pages['toko'] : 0,
+        ];
+
+        return array_values(array_filter(array_unique(array_map('intval', $ids))));
+    }
+
+    public static function profile_page_id()
+    {
+        return self::core_page_id('page_profile');
     }
 }
