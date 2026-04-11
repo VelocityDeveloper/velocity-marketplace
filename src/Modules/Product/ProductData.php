@@ -76,6 +76,7 @@ class ProductData
             'stock' => $core_product !== null && array_key_exists('stock', $core_product) ? $core_product['stock'] : self::meta_number($post_id, 'stock', null),
             'min_order' => $core_product !== null && array_key_exists('min_order', $core_product) ? max(1, (int) $core_product['min_order']) : max(1, (int) self::meta_number($post_id, 'min_order', 1)),
             'weight' => $core_product !== null && array_key_exists('weight_kg', $core_product) ? (float) $core_product['weight_kg'] : self::meta_number($post_id, 'weight', 0),
+            'is_digital' => \WpStore\Domain\Product\ProductData::is_digital($post_id),
             'label' => '',
             'is_premium' => (int) self::meta_number($post_id, 'is_premium', 0) === 1,
             'variant_name' => $variant_name,

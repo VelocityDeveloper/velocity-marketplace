@@ -47,9 +47,14 @@ $qris = \VelocityMarketplace\Support\Settings::qris_details();
                             </div>
                             <div class="col-12">
                                 <label class="form-label"><?php echo esc_html__('Alamat', 'velocity-marketplace'); ?></label>
-                                <textarea class="form-control" rows="3" x-model.trim="form.address" required></textarea>
+                                <textarea class="form-control" rows="3" x-model.trim="form.address" :required="requiresShipping()"></textarea>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-12" x-show="!requiresShipping()">
+                                <div class="alert alert-info py-2 mb-0">
+                                    <?php echo esc_html__('Keranjang ini hanya berisi produk digital. Alamat dan ongkir tidak diperlukan.', 'velocity-marketplace'); ?>
+                                </div>
+                            </div>
+                            <div class="col-md-4" x-show="requiresShipping()">
                                 <label class="form-label"><?php echo esc_html__('Provinsi', 'velocity-marketplace'); ?></label>
                                 <select class="form-select" x-ref="provinceSelect" x-model="form.destination_province_id" @change="onProvinceChange()" :disabled="isLoadingProvinces">
                                     <option value=""><?php echo esc_html__('Pilih provinsi', 'velocity-marketplace'); ?></option>
@@ -58,7 +63,7 @@ $qris = \VelocityMarketplace\Support\Settings::qris_details();
                                     </template>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4" x-show="requiresShipping()">
                                 <label class="form-label"><?php echo esc_html__('Kota/Kabupaten', 'velocity-marketplace'); ?></label>
                                 <select class="form-select" x-ref="citySelect" x-model="form.destination_city_id" @change="onCityChange()" :disabled="!form.destination_province_id || isLoadingCities">
                                     <option value=""><?php echo esc_html__('Pilih kota atau kabupaten', 'velocity-marketplace'); ?></option>
@@ -67,7 +72,7 @@ $qris = \VelocityMarketplace\Support\Settings::qris_details();
                                     </template>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4" x-show="requiresShipping()">
                                 <label class="form-label"><?php echo esc_html__('Kecamatan', 'velocity-marketplace'); ?></label>
                                 <select class="form-select" x-ref="subdistrictSelect" x-model="form.destination_subdistrict_id" @change="onSubdistrictChange()" :disabled="!form.destination_city_id || isLoadingSubdistricts">
                                     <option value=""><?php echo esc_html__('Pilih kecamatan', 'velocity-marketplace'); ?></option>
@@ -126,10 +131,10 @@ $qris = \VelocityMarketplace\Support\Settings::qris_details();
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <div class="col-12" x-show="shippingContextMessage">
+                            <div class="col-12" x-show="requiresShipping() && shippingContextMessage">
                                 <div class="alert alert-warning py-2 mb-0" x-text="shippingContextMessage"></div>
                             </div>
-                            <div class="col-12" x-show="shippingGroups.length > 0">
+                            <div class="col-12" x-show="requiresShipping()">
                                 <label class="form-label"><?php echo esc_html__('Pilih Layanan Pengiriman per Toko', 'velocity-marketplace'); ?></label>
                                 <div class="row g-3">
                                     <template x-for="group in shippingGroups" :key="group.seller_id">

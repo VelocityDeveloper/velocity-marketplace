@@ -146,12 +146,14 @@ class OrderActionHandler extends BaseActionHandler
 
         $shipping_groups = OrderData::shipping_groups($order_id);
         $seller_name = '';
+        $updated_shipping_group = false;
         if (is_array($shipping_groups) && !empty($shipping_groups)) {
             foreach ($shipping_groups as &$shipping_group) {
                 if ((int) ($shipping_group['seller_id'] ?? 0) !== $seller_id) {
                     continue;
                 }
                 $shipping_group['status'] = $status;
+                $updated_shipping_group = true;
                 $seller_name = isset($shipping_group['seller_name']) ? (string) $shipping_group['seller_name'] : '';
                 if ($resi !== '') {
                     $shipping_group['receipt_no'] = $resi;
@@ -168,11 +170,16 @@ class OrderActionHandler extends BaseActionHandler
                 }
             }
             unset($shipping_group);
-            update_post_meta($order_id, 'vmp_shipping_groups', array_values($shipping_groups));
+            if ($updated_shipping_group) {
+                update_post_meta($order_id, 'vmp_shipping_groups', array_values($shipping_groups));
+            }
         }
 
         $previous_status = (string) get_post_meta($order_id, 'vmp_status', true);
         $summary_status = OrderData::summarize_shipping_statuses(is_array($shipping_groups) ? $shipping_groups : [], $previous_status !== '' ? $previous_status : 'pending_payment');
+        if (!$updated_shipping_group && OrderData::seller_can_update_global_status($order_id, $seller_id)) {
+            $summary_status = $status;
+        }
         update_post_meta($order_id, 'vmp_status', $summary_status);
         OrderData::sync_core_status($order_id, $summary_status);
 

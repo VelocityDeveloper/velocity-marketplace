@@ -384,11 +384,20 @@ class ShippingController
 
         $repo = new CartRepository();
         $cart = $repo->get_cart_data();
+        $cart_items = isset($cart['items']) && is_array($cart['items']) ? $cart['items'] : [];
         $groups = isset($cart['seller_groups']) && is_array($cart['seller_groups']) ? $cart['seller_groups'] : [];
-        if (empty($groups)) {
+        if (empty($cart_items)) {
             return [
                 'success' => false,
                 'message' => 'Keranjang kosong.',
+            ];
+        }
+        if (empty($groups)) {
+            return [
+                'success' => true,
+                'data' => [
+                    'groups' => [],
+                ],
             ];
         }
 

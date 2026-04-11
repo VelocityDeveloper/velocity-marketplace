@@ -15,7 +15,12 @@ class CouponService
             'post_type' => 'store_coupon',
             'post_status' => 'publish',
             'posts_per_page' => 1,
-            'title' => $code,
+            'meta_query' => [
+                [
+                    'key' => '_store_coupon_code',
+                    'value' => $code,
+                ],
+            ],
             'fields' => 'ids',
         ]);
 
@@ -133,9 +138,14 @@ class CouponService
             return null;
         }
 
+        $stored_code = strtoupper((string) get_post_meta($coupon_id, '_store_coupon_code', true));
+        if ($stored_code === '') {
+            $stored_code = strtoupper((string) get_the_title($coupon_id));
+        }
+
         return [
             'id' => $coupon_id,
-            'code' => strtoupper((string) get_the_title($coupon_id)),
+            'code' => $stored_code,
             'scope' => (string) get_post_meta($coupon_id, '_store_coupon_scope', true) === 'shipping' ? 'shipping' : 'product',
             'type' => (string) get_post_meta($coupon_id, '_store_coupon_type', true) === 'percent' ? 'percent' : 'nominal',
             'amount' => (float) get_post_meta($coupon_id, '_store_coupon_value', true),

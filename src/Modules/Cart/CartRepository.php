@@ -47,8 +47,9 @@ class CartRepository
             return new \WP_Error('invalid_product', 'Produk tidak valid');
         }
 
+        $is_digital = \WpStore\Domain\Product\ProductData::is_digital($product_id);
         $weight = (float) ProductMeta::get_number($product_id, 'weight', 0);
-        if ($weight <= 0) {
+        if (!$is_digital && $weight <= 0) {
             return new \WP_Error(
                 'missing_weight',
                 sprintf('Produk "%s" belum memiliki berat. Lengkapi berat produk sebelum dimasukkan ke keranjang.', get_the_title($product_id))
@@ -129,6 +130,7 @@ class CartRepository
                 'seller_url' => $seller_url,
                 'stock' => $product['stock'],
                 'weight' => isset($product['weight']) ? (float) $product['weight'] : 0,
+                'is_digital' => !empty($product['is_digital']),
             ];
 
             if (!isset($seller_groups[$seller_id])) {
@@ -252,6 +254,7 @@ class CartRepository
                     'seller_id' => $seller_id,
                     'subtotal' => 0.0,
                     'items_count' => 0,
+                    'shippable_items_count' => 0,
                     'weight_kg' => 0.0,
                     'weight_grams' => 0,
                     'item_keys' => [],
@@ -262,19 +265,26 @@ class CartRepository
             $qty = (int) ($item['qty'] ?? 0);
             $weight = (float) ($item['weight'] ?? 0);
             $subtotal = (float) ($item['subtotal'] ?? 0);
+            $is_digital = !empty($item['is_digital']);
             $groups[$seller_id]['subtotal'] += $subtotal;
             $groups[$seller_id]['items_count'] += $qty;
-            $groups[$seller_id]['weight_kg'] += ($weight * $qty);
-            $groups[$seller_id]['weight_grams'] += (int) round(($weight * $qty) * 1000);
-            $item_key = (string) ($item['cart_key'] ?? '');
-            if ($item_key !== '') {
-                $groups[$seller_id]['item_keys'][] = $item_key;
+            if (!$is_digital) {
+                $groups[$seller_id]['shippable_items_count'] += $qty;
+                $groups[$seller_id]['weight_kg'] += ($weight * $qty);
+                $groups[$seller_id]['weight_grams'] += (int) round(($weight * $qty) * 1000);
+                $item_key = (string) ($item['cart_key'] ?? '');
+                if ($item_key !== '') {
+                    $groups[$seller_id]['item_keys'][] = $item_key;
+                }
             }
         }
 
         $normalized_groups = [];
         foreach ($order as $seller_id) {
             if (!isset($groups[$seller_id])) {
+                continue;
+            }
+            if (empty($groups[$seller_id]['item_keys']) || (int) $groups[$seller_id]['weight_grams'] < 1) {
                 continue;
             }
             $groups[$seller_id]['subtotal'] = (float) $groups[$seller_id]['subtotal'];

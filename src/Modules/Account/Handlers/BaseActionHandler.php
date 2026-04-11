@@ -18,6 +18,7 @@ abstract class BaseActionHandler
         $target = remove_query_arg([
             'vmp_notice',
             'vmp_error',
+            'vmp_error_field',
             'invoice',
             'message_to',
             'message_order',
@@ -30,7 +31,7 @@ abstract class BaseActionHandler
 
     protected function stay_with($params = [])
     {
-        foreach (['vmp_notice', 'vmp_error', 'invoice', 'message_to', 'message_order'] as $key) {
+        foreach (['vmp_notice', 'vmp_error', 'vmp_error_field', 'invoice', 'message_to', 'message_order'] as $key) {
             unset($_GET[$key], $_POST[$key], $_REQUEST[$key]);
         }
 

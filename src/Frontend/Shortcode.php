@@ -213,21 +213,7 @@ class Shortcode
     public function render_product_reviews($atts = [])
     {
         $this->ensure_frontend_assets();
-
-        $atts = shortcode_atts([
-            'id' => 0,
-            'limit' => 20,
-        ], $atts);
-
-        $product_id = $this->resolve_product_id((int) $atts['id']);
-        if ($product_id <= 0) {
-            return '';
-        }
-
-        return Template::render('product-reviews', [
-            'product_id' => $product_id,
-            'limit' => max(1, min(100, (int) $atts['limit'])),
-        ]);
+        return $this->render_core_shortcode('wp_store_product_reviews', $atts);
     }
 
     public function render_product_seller_card($atts = [])

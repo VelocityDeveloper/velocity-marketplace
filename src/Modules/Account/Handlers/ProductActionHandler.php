@@ -57,18 +57,23 @@ class ProductActionHandler extends BaseActionHandler
 
         $title = sanitize_text_field((string) ($_POST['title'] ?? ''));
         $description = wp_kses_post((string) ($_POST['description'] ?? ''));
-        $price = isset($_POST['_store_price']) && is_numeric($_POST['_store_price']) ? (float) $_POST['_store_price'] : 0;
         $cat_id = isset($_POST['category_id']) ? (int) $_POST['category_id'] : 0;
         $premium_requested = !empty($_POST['premium_request']);
 
-        if ($title === '' || $price <= 0) {
-            $this->redirect_with(['vmp_error' => 'Judul dan harga wajib diisi.', 'tab' => 'seller_products']);
+        if ($title === '') {
+            $this->redirect_with([
+                'vmp_error' => 'Nama Produk wajib diisi.',
+                'vmp_error_field' => 'title',
+                'tab' => 'seller_products',
+            ]);
         }
 
         $validation = ProductFields::validate_submission('frontend');
         if (is_wp_error($validation)) {
+            $error_data = $validation->get_error_data();
             $this->redirect_with([
                 'vmp_error' => $validation->get_error_message(),
+                'vmp_error_field' => is_array($error_data) && !empty($error_data['field']) ? (string) $error_data['field'] : '',
                 'tab' => 'seller_products',
             ]);
         }

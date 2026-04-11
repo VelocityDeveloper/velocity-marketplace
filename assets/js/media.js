@@ -3,6 +3,123 @@
   const cfg = window.vmpSettings || {};
   const currentUserId = Number(cfg.currentUserId || 0);
   const canManageOptions = !!cfg.canManageOptions;
+  let validationDialog = null;
+
+  const escapeHtml = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const ensureValidationDialog = () => {
+    if (validationDialog) return validationDialog;
+
+    const dialog = document.createElement("div");
+    dialog.className = "vmp-validation-dialog";
+    dialog.innerHTML = `
+      <div class="vmp-validation-dialog__backdrop" data-vmp-dialog-close="1"></div>
+      <div class="vmp-validation-dialog__panel" role="alertdialog" aria-modal="true" aria-labelledby="vmp-validation-dialog-title">
+        <div class="vmp-validation-dialog__header">
+          <h3 id="vmp-validation-dialog-title" class="vmp-validation-dialog__title">Field wajib belum lengkap</h3>
+          <button type="button" class="vmp-validation-dialog__close" aria-label="Tutup" data-vmp-dialog-close="1">&times;</button>
+        </div>
+        <div class="vmp-validation-dialog__body">
+          <p class="vmp-validation-dialog__text">Lengkapi field berikut sebelum menyimpan produk.</p>
+          <ul class="vmp-validation-dialog__list"></ul>
+        </div>
+        <div class="vmp-validation-dialog__footer">
+          <button type="button" class="btn btn-dark btn-sm" data-vmp-dialog-close="1">Tutup</button>
+        </div>
+      </div>
+    `;
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target && event.target.getAttribute("data-vmp-dialog-close") === "1") {
+        dialog.classList.remove("is-open");
+      }
+    });
+
+    document.body.appendChild(dialog);
+    validationDialog = dialog;
+    return validationDialog;
+  };
+
+  const fieldLabel = (control) => {
+    const explicit = String(control.getAttribute("data-field-label") || "").trim();
+    if (explicit) return explicit;
+
+    const id = String(control.id || "").trim();
+    if (id) {
+      const label = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+      const text = String(label?.textContent || "").trim().replace(/\s*\*+\s*$/, "");
+      if (text) return text;
+    }
+
+    const wrap = control.closest("[data-field-required], .col-12, .col-md-6, .form-field, p");
+    const text = String(wrap?.querySelector("label")?.textContent || "").trim().replace(/\s*\*+\s*$/, "");
+    return text || "Field wajib";
+  };
+
+  const isMissingRequired = (control, form) => {
+    if (!control || control.disabled || control.type === "hidden") {
+      return false;
+    }
+
+    const type = String(control.type || "").toLowerCase();
+    const tag = String(control.tagName || "").toLowerCase();
+
+    if (type === "checkbox") {
+      return !control.checked;
+    }
+
+    if (type === "radio") {
+      const name = String(control.name || "").trim();
+      if (!name) {
+        return !control.checked;
+      }
+      return !form.querySelector(`input[type="radio"][name="${CSS.escape(name)}"]:checked`);
+    }
+
+    if (tag === "select") {
+      return String(control.value || "").trim() === "";
+    }
+
+    return String(control.value || "").trim() === "";
+  };
+
+  const collectMissingRequiredFields = (form) => {
+    const labels = [];
+    const seen = new Set();
+
+    form.querySelectorAll("[data-required='1']").forEach((control) => {
+      if (!isMissingRequired(control, form)) {
+        control.classList.remove("is-invalid");
+        return;
+      }
+
+      control.classList.add("is-invalid");
+      const label = fieldLabel(control);
+      if (!seen.has(label)) {
+        labels.push(label);
+        seen.add(label);
+      }
+    });
+
+    return labels;
+  };
+
+  const showValidationDialog = (labels) => {
+    const dialog = ensureValidationDialog();
+    const list = dialog.querySelector(".vmp-validation-dialog__list");
+    if (list) {
+      list.innerHTML = (Array.isArray(labels) ? labels : [])
+        .map((label) => `<li>${escapeHtml(label)}</li>`)
+        .join("");
+    }
+    dialog.classList.add("is-open");
+  };
 
   // Mengubah nilai input hidden menjadi daftar ID attachment yang valid.
   const parseAttachmentIds = (value) =>
@@ -330,13 +447,49 @@
       const expectedType = String(fieldWrap.getAttribute("data-show-if-product-type") || "").trim();
       if (!expectedType) return;
 
-      fieldWrap.style.display = expectedType === type ? "" : "none";
+      const visible = expectedType === type;
+      fieldWrap.querySelectorAll("input, select, textarea").forEach((control) => {
+        if (control.type === "hidden") {
+          return;
+        }
+
+        const shouldRequire = visible && control.getAttribute("data-required") === "1";
+        control.setAttribute("aria-required", shouldRequire ? "true" : "false");
+        control.disabled = !visible;
+      });
+
+      fieldWrap.style.display = visible ? "" : "none";
     });
   };
 
   document.addEventListener("change", (event) => {
     if (event.target && event.target.id === "_store_product_type") {
       toggleProductTypeFields();
+    }
+  });
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) {
+      return;
+    }
+
+    const actionInput = form.querySelector('input[name="vmp_action"][value="seller_save_product"]');
+    if (!actionInput) {
+      return;
+    }
+
+    const missingFields = collectMissingRequiredFields(form);
+    if (!missingFields.length) {
+      return;
+    }
+
+    event.preventDefault();
+    showValidationDialog(missingFields);
+
+    const firstInvalid = form.querySelector(".is-invalid");
+    if (firstInvalid instanceof HTMLElement) {
+      firstInvalid.focus();
     }
   });
 

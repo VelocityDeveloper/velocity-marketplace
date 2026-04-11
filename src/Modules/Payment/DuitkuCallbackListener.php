@@ -70,7 +70,7 @@ class DuitkuCallbackListener
                 'payment',
                 'Pembayaran Berhasil',
                 'Pembayaran untuk invoice ' . $invoice . ' berhasil dikonfirmasi oleh Duitku.',
-                add_query_arg(['tab' => 'tracking', 'invoice' => $invoice], Settings::profile_url())
+                Settings::customer_order_url($invoice)
             );
         }
 

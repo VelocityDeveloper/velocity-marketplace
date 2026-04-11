@@ -182,7 +182,7 @@ class EmailTemplateService
 
         $store_name = (string) get_bloginfo('name');
         $store_address = esc_url(home_url('/'));
-        $tracking_url = Settings::tracking_url($invoice);
+        $tracking_url = Settings::customer_order_url($invoice);
 
         $context = [
             '__customer_email' => (string) ($customer['email'] ?? ''),

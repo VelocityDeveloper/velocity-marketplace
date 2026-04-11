@@ -91,9 +91,6 @@ class CheckoutController
         if ($customer['email'] !== '' && !is_email($customer['email'])) {
             return new WP_REST_Response(['message' => 'Email tidak valid.'], 400);
         }
-        if ($shipping_destination['province_destination_id'] === '' || $shipping_destination['city_destination_id'] === '' || $shipping_destination['subdistrict_destination_id'] === '') {
-            return new WP_REST_Response(['message' => 'Provinsi, kota, dan kecamatan tujuan wajib diisi.'], 400);
-        }
 
         if (CaptchaBridge::is_active()) {
             $verify = CaptchaBridge::verify_payload($payload);
@@ -106,6 +103,7 @@ class CheckoutController
 
         $subtotal = 0;
         $total_weight = 0;
+        $requires_shipping = false;
         $order_items = [];
 
         foreach ($items as $item) {
@@ -116,15 +114,19 @@ class CheckoutController
                 continue;
             }
 
+            $is_digital = !empty($item['is_digital']) || \WpStore\Domain\Product\ProductData::is_digital($product_id);
             $weight = (float) ProductMeta::get_number($product_id, 'weight', 0);
-            if ($weight <= 0) {
+            if (!$is_digital && $weight <= 0) {
                 return new WP_REST_Response([
                     'message' => sprintf(__('Produk "%s" belum memiliki berat. Lengkapi berat produk sebelum checkout.', 'velocity-marketplace'), get_the_title($product_id)),
                 ], 400);
             }
             $line_subtotal = $price * $qty;
             $subtotal += $line_subtotal;
-            $total_weight += ($weight * $qty);
+            if (!$is_digital) {
+                $requires_shipping = true;
+                $total_weight += ($weight * $qty);
+            }
 
             $order_items[] = [
                 'cart_key' => isset($item['cart_key']) ? sanitize_text_field((string) $item['cart_key']) : '',
@@ -134,6 +136,7 @@ class CheckoutController
                 'price' => $price,
                 'subtotal' => $line_subtotal,
                 'weight' => $weight,
+                'is_digital' => $is_digital ? 1 : 0,
                 'seller_id' => isset($item['penjual']) ? (int) $item['penjual'] : (int) get_post_field('post_author', $product_id),
                 'options' => isset($item['options']) && is_array($item['options']) ? $item['options'] : [],
             ];
@@ -143,12 +146,23 @@ class CheckoutController
             return new WP_REST_Response(['message' => 'Keranjang tidak valid.'], 400);
         }
 
-        $shipping_context = (new ShippingController())->get_checkout_context($request);
-        $shipping_context_data = $shipping_context instanceof WP_REST_Response ? $shipping_context->get_data() : [];
-        if (empty($shipping_context_data['success'])) {
-            return new WP_REST_Response([
-                'message' => isset($shipping_context_data['message']) ? (string) $shipping_context_data['message'] : 'Context ongkir tidak valid.',
-            ], 400);
+        if ($payment_method === 'cod' && !$requires_shipping) {
+            return new WP_REST_Response(['message' => 'COD tidak tersedia untuk keranjang yang hanya berisi produk digital.'], 400);
+        }
+
+        if ($requires_shipping && ($shipping_destination['province_destination_id'] === '' || $shipping_destination['city_destination_id'] === '' || $shipping_destination['subdistrict_destination_id'] === '')) {
+            return new WP_REST_Response(['message' => 'Provinsi, kota, dan kecamatan tujuan wajib diisi.'], 400);
+        }
+
+        $shipping_context_data = ['success' => true, 'data' => ['groups' => []]];
+        if ($requires_shipping) {
+            $shipping_context = (new ShippingController())->get_checkout_context($request);
+            $shipping_context_data = $shipping_context instanceof WP_REST_Response ? $shipping_context->get_data() : [];
+            if (empty($shipping_context_data['success'])) {
+                return new WP_REST_Response([
+                    'message' => isset($shipping_context_data['message']) ? (string) $shipping_context_data['message'] : 'Context ongkir tidak valid.',
+                ], 400);
+            }
         }
 
         $order_status = $payment_method === 'cod' ? 'processing' : $default_order_status;
@@ -267,7 +281,7 @@ class CheckoutController
         }
         OrderData::sync_core_status($order_id, $order_status);
 
-        $redirect = $this->resolve_profile_url($invoice);
+        $redirect = $this->resolve_tracking_url($invoice);
         if ($payment_method === 'duitku') {
             $duitku_invoice = (new PaymentService())->initialize_order_payment($order_id, 'duitku', [
                 'order_number' => $invoice,
@@ -310,6 +324,7 @@ class CheckoutController
         }
 
         $profile_url = Settings::profile_url();
+        $tracking_url = Settings::customer_order_url($invoice);
         $notif = new NotificationRepository();
 
         if ($user_id > 0) {
@@ -318,7 +333,7 @@ class CheckoutController
                 'order',
                 'Pesanan Berhasil Dibuat',
                 'Invoice ' . $invoice . ' berhasil dibuat dengan total ' . number_format((float) $total, 0, ',', '.') . '.',
-                add_query_arg(['tab' => 'orders', 'invoice' => $invoice], $profile_url)
+                $tracking_url
             );
         }
         $email_templates = new EmailTemplateService();
@@ -377,12 +392,9 @@ class CheckoutController
         return 'VMP-' . gmdate('Ymd') . '-' . wp_rand(100000, 999999);
     }
 
-    private function resolve_profile_url($invoice)
+    private function resolve_tracking_url($invoice)
     {
-        return add_query_arg([
-            'tab' => 'tracking',
-            'invoice' => $invoice,
-        ], Settings::profile_url());
+        return Settings::customer_order_url((string) $invoice);
     }
 
     private function build_shipping_groups($submitted_groups, $destination, $context_data, $order_items, $payment_method, $initial_status = 'pending_payment')
@@ -393,7 +405,7 @@ class CheckoutController
             ? $context_data['data']['groups']
             : [];
         if (empty($context_groups)) {
-            return new \WP_Error('missing_shipping_groups', 'Data ongkir per toko tidak tersedia.');
+            return [];
         }
 
         $items_by_seller = [];

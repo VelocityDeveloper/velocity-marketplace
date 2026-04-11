@@ -92,18 +92,20 @@
     async init() {
       this.applyCustomerProfileDefaults();
       await this.fetchCart();
-      await this.loadProvinces();
-      this.syncProvinceSelection();
-      if (this.form.destination_province_id) {
-        await this.loadCities(this.form.destination_province_id);
-        this.syncCitySelection();
-      }
-      if (this.form.destination_city_id) {
-        await this.loadSubdistricts(this.form.destination_city_id);
-        this.syncSubdistrictSelection();
-      }
       await this.loadCheckoutContext();
-      if (this.form.destination_subdistrict_id) {
+      if (this.requiresShipping()) {
+        await this.loadProvinces();
+        this.syncProvinceSelection();
+        if (this.form.destination_province_id) {
+          await this.loadCities(this.form.destination_province_id);
+          this.syncCitySelection();
+        }
+        if (this.form.destination_city_id) {
+          await this.loadSubdistricts(this.form.destination_city_id);
+          this.syncSubdistrictSelection();
+        }
+      }
+      if (this.requiresShipping() && this.form.destination_subdistrict_id) {
         await Promise.all(
           this.shippingGroups.map((group) => this.loadShippingOptions(group)),
         );
@@ -112,6 +114,10 @@
     // Mengecek apakah metode pembayaran aktif saat ini adalah COD.
     isCodPayment() {
       return String(this.form.payment_method || '') === 'cod';
+    },
+    // Mengembalikan true jika keranjang masih punya item fisik yang butuh ongkir.
+    requiresShipping() {
+      return Array.isArray(this.shippingGroups) && this.shippingGroups.length > 0;
     },
     // Mengisi form checkout dari profil member jika field masih kosong.
     applyCustomerProfileDefaults() {
@@ -311,6 +317,9 @@
                 : [],
             }))
           : [];
+        if (!this.requiresShipping()) {
+          this.form.shipping_cost = 0;
+        }
         this.shippingContextMessage = '';
       } catch (e) {
         this.shippingGroups = [];
@@ -332,6 +341,9 @@
       this.form.postal_code = '';
       this.subdistricts = [];
       this.resetSellerShippingSelections();
+      if (!this.requiresShipping()) {
+        return;
+      }
       await this.loadCities(this.form.destination_province_id);
       this.recalculateTotal();
     },
@@ -349,6 +361,9 @@
       this.form.destination_subdistrict_name = '';
       this.form.shipping_cost = 0;
       this.resetSellerShippingSelections();
+      if (!this.requiresShipping()) {
+        return;
+      }
       await this.loadSubdistricts(this.form.destination_city_id);
       this.recalculateTotal();
     },
@@ -363,7 +378,7 @@
       this.resetSellerShippingSelections();
       this.recalculateTotal();
 
-      if (this.form.destination_subdistrict_id) {
+      if (this.requiresShipping() && this.form.destination_subdistrict_id) {
         await Promise.all(
           this.shippingGroups.map((group) => this.loadShippingOptions(group)),
         );
@@ -374,7 +389,7 @@
       this.form.shipping_cost = 0;
       this.resetSellerShippingSelections();
       this.recalculateTotal();
-      if (this.form.destination_subdistrict_id) {
+      if (this.requiresShipping() && this.form.destination_subdistrict_id) {
         await Promise.all(
           this.shippingGroups.map((group) => this.loadShippingOptions(group)),
         );
@@ -512,11 +527,12 @@
         this.coupon.code = String(data.data?.code || this.coupon.code);
         if (
           (data.data?.scope || '') === 'shipping' &&
-          this.shippingGroups.some((group) => !group.selected)
+          (this.shippingGroups.length === 0 || this.shippingGroups.some((group) => !group.selected))
         ) {
           this.coupon.applied = null;
-          this.coupon.message =
-            'Voucher ongkir baru dapat diterapkan setelah layanan pengiriman dipilih untuk setiap toko.';
+          this.coupon.message = this.shippingGroups.length === 0
+            ? 'Voucher ongkir tidak bisa dipakai karena keranjang tidak memerlukan pengiriman.'
+            : 'Voucher ongkir baru dapat diterapkan setelah layanan pengiriman dipilih untuk setiap toko.';
           this.recalculateTotal();
           return;
         }
@@ -553,27 +569,28 @@
       this.errorMessage = '';
       this.successMessage = '';
 
-      if (!this.form.name || !this.form.phone || !this.form.address) {
-        this.errorMessage = 'Nama, telepon, dan alamat wajib diisi.';
+      if (!this.form.name || !this.form.phone) {
+        this.errorMessage = 'Nama dan telepon wajib diisi.';
         return;
       }
       if (!Array.isArray(this.items) || this.items.length === 0) {
         this.errorMessage = 'Keranjang kosong.';
         return;
       }
+      if (this.requiresShipping() && !this.form.address) {
+        this.errorMessage = 'Alamat wajib diisi.';
+        return;
+      }
       if (
-        !this.form.destination_province_id ||
-        !this.form.destination_city_id ||
-        !this.form.destination_subdistrict_id
+        this.requiresShipping() &&
+        (!this.form.destination_province_id ||
+          !this.form.destination_city_id ||
+          !this.form.destination_subdistrict_id)
       ) {
         this.errorMessage = 'Provinsi, kota, dan kecamatan tujuan wajib dipilih.';
         return;
       }
-      if (!this.shippingGroups.length) {
-        this.errorMessage = 'Data pengiriman untuk setiap toko belum tersedia.';
-        return;
-      }
-      if (this.shippingGroups.some((group) => !group.selected)) {
+      if (this.requiresShipping() && this.shippingGroups.some((group) => !group.selected)) {
         this.errorMessage = 'Pilih layanan pengiriman untuk setiap toko.';
         return;
       }

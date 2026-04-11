@@ -228,10 +228,21 @@ class Settings
 
         $invoice = trim((string) $invoice);
         if ($invoice !== '') {
-            return add_query_arg(['invoice' => $invoice], $base);
+            return add_query_arg(['order' => $invoice], $base);
         }
 
         return $base;
+    }
+
+    public static function customer_order_url($invoice = '', $fragment = '')
+    {
+        $url = self::tracking_url($invoice);
+        $fragment = trim((string) $fragment);
+        if ($fragment !== '') {
+            $url .= '#' . ltrim($fragment, '#');
+        }
+
+        return $url;
     }
 
     public static function shipping_api_key()

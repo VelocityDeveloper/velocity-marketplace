@@ -177,6 +177,41 @@ class OrderData
         return !empty(self::seller_items($order_id, $seller_id));
     }
 
+    public static function seller_ids($order_id)
+    {
+        $seller_ids = [];
+        foreach (self::get_items($order_id) as $line) {
+            $seller_id = isset($line['seller_id']) ? (int) $line['seller_id'] : 0;
+            if ($seller_id > 0) {
+                $seller_ids[$seller_id] = $seller_id;
+            }
+        }
+
+        return array_values($seller_ids);
+    }
+
+    public static function seller_requires_shipping($order_id, $seller_id)
+    {
+        foreach (self::seller_items($order_id, $seller_id) as $line) {
+            $product_id = isset($line['product_id']) ? (int) $line['product_id'] : 0;
+            $is_digital = array_key_exists('is_digital', $line)
+                ? !empty($line['is_digital'])
+                : ($product_id > 0 && \WpStore\Domain\Product\ProductData::is_digital($product_id));
+
+            if (!$is_digital) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function seller_can_update_global_status($order_id, $seller_id)
+    {
+        $seller_ids = self::seller_ids($order_id);
+        return self::has_seller($order_id, $seller_id) && count($seller_ids) === 1;
+    }
+
     public static function shipping_groups($order_id)
     {
         $groups = get_post_meta((int) $order_id, 'vmp_shipping_groups', true);
