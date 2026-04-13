@@ -243,6 +243,7 @@ class Shortcode
     public function render_add_to_cart($atts = [])
     {
         $this->ensure_frontend_assets();
+        $raw_atts = is_array($atts) ? $atts : [];
 
         $atts = shortcode_atts([
             'id' => 0,
@@ -261,9 +262,13 @@ class Shortcode
             return '';
         }
 
+        $text = array_key_exists('text', $raw_atts)
+            ? (string) $atts['text']
+            : __('Tambah Keranjang', 'velocity-marketplace');
+
         return $this->render_add_to_cart_markup(
             $item,
-            (string) $atts['text'],
+            $text,
             (string) $atts['class'],
             (string) $atts['style']
         );
@@ -774,11 +779,6 @@ class Shortcode
             return '';
         }
 
-        $wishlist_active = false;
-        if (is_user_logged_in()) {
-            $wishlist_active = (new WishlistRepository())->has($product_id, get_current_user_id());
-        }
-
         $stock_text = __('Stok tidak terbatas', 'velocity-marketplace');
         if (isset($item['stock']) && $item['stock'] !== '' && $item['stock'] !== null) {
             $stock_text = (float) $item['stock'] > 0
@@ -795,9 +795,8 @@ class Shortcode
         }
         $html .= $this->render_price_markup($item, '', Settings::currency_symbol());
         $html .= '<div class="small text-muted mb-3">' . esc_html($stock_text) . '</div>';
-        $html .= '<div class="mt-auto d-flex gap-2 vmp-product-card__actions">';
-        $html .= $this->render_add_to_cart_markup($item, __('Tambah Keranjang', 'velocity-marketplace'), 'btn btn-sm btn-dark flex-grow-1');
-        $html .= $this->render_add_to_wishlist_markup($product_id, __('Wishlist', 'velocity-marketplace'), 'btn btn-sm btn-outline-secondary vmp-wishlist-button', $wishlist_active);
+        $html .= '<div class="mt-auto vmp-product-card__actions">';
+        $html .= $this->render_add_to_cart_markup($item, __('Tambah Keranjang', 'velocity-marketplace'), 'btn btn-sm btn-dark w-100');
         $html .= '</div></div></div>';
 
         return $html;
@@ -838,7 +837,7 @@ class Shortcode
             return '';
         }
 
-        $text = $text !== '' ? (string) $text : __('Tambah Keranjang', 'velocity-marketplace');
+        $text = (string) $text;
         $style = sanitize_key((string) $style);
         if (!in_array($style, ['popup', 'inline'], true)) {
             $style = 'popup';
@@ -858,7 +857,14 @@ class Shortcode
             $html .= $this->render_inline_add_to_cart_options($payload);
         }
 
-        $html .= '<button type="button" class="' . esc_attr(trim((string) $class_name)) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-option-style="' . esc_attr($style) . '" data-default-label="' . esc_attr((string) $text) . '">' . esc_html((string) $text) . '</button>';
+        $button_class = trim((string) $class_name . ' d-inline-flex align-items-center justify-content-center gap-2');
+        $button_label = $text !== '' ? $text : __('Tambah Keranjang', 'velocity-marketplace');
+        $html .= '<button type="button" class="' . esc_attr($button_class) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-option-style="' . esc_attr($style) . '" data-default-label="' . esc_attr((string) $button_label) . '" aria-label="' . esc_attr((string) $button_label) . '">';
+        $html .= '<span class="vmp-action-add-to-cart__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h2l2.4 10.5a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H7"/><circle cx="10" cy="19" r="1.5" fill="currentColor"/><circle cx="17" cy="19" r="1.5" fill="currentColor"/></svg></span>';
+        if ($text !== '') {
+            $html .= '<span class="vmp-action-add-to-cart__text">' . esc_html($text) . '</span>';
+        }
+        $html .= '</button>';
         $html .= '</div>';
 
         return $html;

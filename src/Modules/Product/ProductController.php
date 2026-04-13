@@ -147,14 +147,8 @@ class ProductController
             $extra_html .= '<div class="small text-muted mb-1">' . esc_html__('Belum ada ulasan', 'velocity-marketplace') . '</div>';
         }
 
-        $actions_html = '<div class="wps-flex wps-items-center wps-justify-between">'
-            . '<div class="wps-flex wps-gap-2">'
+        $actions_html = '<div>'
             . '<button type="button" class="btn btn-sm btn-dark flex-grow-1" data-vmp-catalog-add-to-cart="1" data-product-id="' . esc_attr((string) $product_id) . '">' . esc_html__('Tambah Keranjang', 'velocity-marketplace') . '</button>'
-            . '<button type="button" class="btn btn-sm btn-outline-secondary vmp-wishlist-button" data-vmp-catalog-toggle-wishlist="1" data-product-id="' . esc_attr((string) $product_id) . '" aria-pressed="false" title="' . esc_attr__('Wishlist', 'velocity-marketplace') . '" aria-label="' . esc_attr__('Wishlist', 'velocity-marketplace') . '">'
-            . $this->wishlist_icon_svg(false)
-            . '</button>'
-            . '</div>'
-            . '<a class="wps-btn wps-btn-secondary wps-btn-sm" href="' . esc_url((string) ($item['link'] ?? get_permalink($product_id))) . '">' . esc_html__('Detail', 'velocity-marketplace') . '</a>'
             . '</div>';
 
         return \WpStore\Frontend\Template::render('components/product-card', [
@@ -167,7 +161,6 @@ class ProductController
                 'stock' => $item['stock'] ?? null,
             ],
             'currency' => Settings::currency_symbol(),
-            'view_label' => __('Detail', 'velocity-marketplace'),
             'extra_html' => $extra_html,
             'actions_html' => $actions_html,
             'card_class' => 'vmp-product-card',
