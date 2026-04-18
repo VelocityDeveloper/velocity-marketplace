@@ -11,18 +11,40 @@ class SettingsPage
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_init', [$this, 'register_setting']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_filter('parent_file', [$this, 'fix_parent_menu']);
+        add_filter('submenu_file', [$this, 'fix_submenu_file']);
     }
 
     public function add_menu()
     {
         $this->page_hook = add_submenu_page(
-            'edit.php?post_type=store_product',
+            'wp-store',
             __('Pengaturan VD Marketplace', 'velocity-marketplace'),
             __('Pengaturan Marketplace', 'velocity-marketplace'),
             'manage_options',
             'vmp-settings',
             [$this, 'render_page']
         );
+    }
+
+    public function fix_parent_menu($parent_file)
+    {
+        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+        if ($page === 'vmp-settings') {
+            return 'wp-store';
+        }
+
+        return $parent_file;
+    }
+
+    public function fix_submenu_file($submenu_file)
+    {
+        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+        if ($page === 'vmp-settings') {
+            return 'vmp-settings';
+        }
+
+        return $submenu_file;
     }
 
     public function register_setting()
@@ -56,11 +78,12 @@ class SettingsPage
             true
         );
 
+        $admin_settings_js = VMP_PATH . 'assets/js/admin-settings.js';
         wp_enqueue_script(
             'velocity-marketplace-admin-settings-js',
             VMP_URL . 'assets/js/admin-settings.js',
             [],
-            VMP_VERSION,
+            file_exists($admin_settings_js) ? (string) filemtime($admin_settings_js) : VMP_VERSION,
             true
         );
 
@@ -82,13 +105,12 @@ class SettingsPage
 
         $service = new SettingsService();
         $settings_payload = $service->get_settings_payload();
-        $core_settings_url = admin_url('edit.php?post_type=store_product&page=wp-store-settings');
+        $core_settings_url = admin_url('admin.php?page=wp-store-settings');
         $editor_settings = [
-            'textarea_rows' => 14,
+            'textarea_rows' => 8,
             'media_buttons' => false,
-            'teeny' => false,
-            'tinymce' => true,
-            'quicktags' => true,
+            'quicktags' => false,
+            'tinymce' => ['menubar' => false, 'toolbar1' => '', 'toolbar2' => ''],
         ];
         ?>
         <div class="wrap">
@@ -97,9 +119,6 @@ class SettingsPage
                 .vmp-admin-settings {
                     max-width: 1180px;
                     margin-top: 20px;
-                }
-                .vmp-admin-settings__notice {
-                    margin: 0 0 16px;
                 }
                 .vmp-settings-tabs {
                     display: flex;
@@ -248,6 +267,53 @@ class SettingsPage
                 .vmp-email-settings__editor .wp-editor-wrap {
                     width: 100%;
                 }
+                .vmp-admin-toast {
+                    position: fixed;
+                    right: 24px;
+                    bottom: 24px;
+                    z-index: 100000;
+                    min-width: 320px;
+                    max-width: 420px;
+                    background: #fff;
+                    border-left: 4px solid #46b450;
+                    border-radius: 8px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                    padding: 16px 18px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .vmp-admin-toast--error {
+                    border-left-color: #d63638;
+                }
+                .vmp-admin-toast__icon {
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 999px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: #fff;
+                    background: #46b450;
+                    flex: 0 0 auto;
+                }
+                .vmp-admin-toast__icon::before {
+                    content: "\2713";
+                }
+                .vmp-admin-toast--error .vmp-admin-toast__icon {
+                    background: #d63638;
+                }
+                .vmp-admin-toast--error .vmp-admin-toast__icon::before {
+                    content: "!";
+                }
+                .vmp-admin-toast__text {
+                    margin: 0;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #3c434a;
+                }
                 @media (max-width: 1100px) {
                     .vmp-bank-settings__row {
                         grid-template-columns: 1fr;
@@ -256,13 +322,26 @@ class SettingsPage
                         grid-template-columns: 1fr;
                     }
                 }
+                @media (max-width: 782px) {
+                    .vmp-admin-toast {
+                        right: 16px;
+                        left: 16px;
+                        bottom: 16px;
+                        min-width: 0;
+                        max-width: none;
+                    }
+                }
             </style>
             <div class="vmp-admin-settings" x-data="vmpAdminSettingsPage()" x-init="init()">
-                <div class="notice notice-success is-dismissible vmp-admin-settings__notice" x-show="saveMessage" style="display:none;">
-                    <p x-text="saveMessage"></p>
-                </div>
-                <div class="notice notice-error is-dismissible vmp-admin-settings__notice" x-show="saveError" style="display:none;">
-                    <p x-text="saveError"></p>
+                <div
+                    class="vmp-admin-toast"
+                    :class="toastType === 'error' ? 'vmp-admin-toast--error' : ''"
+                    x-show="toastVisible"
+                    x-transition.opacity.duration.180ms
+                    style="display:none;"
+                >
+                    <span class="vmp-admin-toast__icon" aria-hidden="true"></span>
+                    <p class="vmp-admin-toast__text" x-text="toastMessage"></p>
                 </div>
 
                 <div class="notice notice-info inline">
@@ -274,7 +353,7 @@ class SettingsPage
 
                 <div class="vmp-settings-tabs" role="tablist" aria-label="<?php echo esc_attr__('Pengaturan Marketplace', 'velocity-marketplace'); ?>">
                     <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'general' }" @click="setTab('general')"><?php echo esc_html__('Pengaturan Umum', 'velocity-marketplace'); ?></button>
-                    <button type="button" class="vmp-settings-tab" :class="{ 'is-active': activeTab === 'email' }" @click="setTab('email')"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></button>
+                    <button type="button" class="vmp-settings-tab is-active" :class="{ 'is-active': activeTab === 'email' }" @click="setTab('email')"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></button>
                 </div>
 
                 <div class="vmp-settings-panel" :class="{ 'is-active': activeTab === 'general' }">
@@ -296,7 +375,7 @@ class SettingsPage
                     </div>
                 </div>
 
-                <div class="vmp-settings-panel" :class="{ 'is-active': activeTab === 'email' }">
+                <div class="vmp-settings-panel is-active" :class="{ 'is-active': activeTab === 'email' }">
                     <div class="vmp-settings-card">
                         <h2 class="vmp-email-settings__title"><?php echo esc_html__('Template Email', 'velocity-marketplace'); ?></h2>
                         <p class="vmp-email-settings__desc"><?php echo esc_html__('Anda dapat mengatur template email di sini.', 'velocity-marketplace'); ?></p>
@@ -305,6 +384,24 @@ class SettingsPage
                             <label for="vmp_email_admin_recipient"><?php echo esc_html__('Email Admin', 'velocity-marketplace'); ?></label>
                             <input id="vmp_email_admin_recipient" type="email" class="regular-text" x-model="form.email_admin_recipient" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
                             <p class="description"><?php echo esc_html__('Email admin untuk menerima email pesanan. Jika dikosongkan, otomatis menggunakan email admin website.', 'velocity-marketplace'); ?></p>
+                        </div>
+
+                        <div class="vmp-email-settings__field">
+                            <label for="vmp_email_from_name"><?php echo esc_html__('Nama Pengirim', 'velocity-marketplace'); ?></label>
+                            <input id="vmp_email_from_name" type="text" class="regular-text" x-model="form.email_from_name" placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>">
+                            <p class="description"><?php echo esc_html__('Nama yang tampil sebagai pengirim email.', 'velocity-marketplace'); ?></p>
+                        </div>
+
+                        <div class="vmp-email-settings__field">
+                            <label for="vmp_email_from_address"><?php echo esc_html__('Email Pengirim', 'velocity-marketplace'); ?></label>
+                            <input id="vmp_email_from_address" type="email" class="regular-text" x-model="form.email_from_address" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+                            <p class="description"><?php echo esc_html__('Sebaiknya memakai email dengan domain website agar lebih aman dari spam filter.', 'velocity-marketplace'); ?></p>
+                        </div>
+
+                        <div class="vmp-email-settings__field">
+                            <label for="vmp_email_reply_to"><?php echo esc_html__('Reply-To', 'velocity-marketplace'); ?></label>
+                            <input id="vmp_email_reply_to" type="email" class="regular-text" x-model="form.email_reply_to" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+                            <p class="description"><?php echo esc_html__('Alamat email tujuan balasan jika pembeli menekan tombol reply.', 'velocity-marketplace'); ?></p>
                         </div>
 
                         <div class="vmp-email-settings__section">
@@ -320,7 +417,7 @@ class SettingsPage
                                     wp_editor(
                                         (string) ($settings_payload['email_template_admin_order'] ?? ''),
                                         'vmp_email_template_admin',
-                                        $editor_settings
+                                        array_merge($editor_settings, ['textarea_name' => 'vmp_settings[email_template_admin_order]'])
                                     );
                                     ?>
                                 </div>
@@ -341,7 +438,7 @@ class SettingsPage
                                     wp_editor(
                                         (string) ($settings_payload['email_template_customer_order'] ?? ''),
                                         'vmp_email_template_customer',
-                                        $editor_settings
+                                        array_merge($editor_settings, ['textarea_name' => 'vmp_settings[email_template_customer_order]'])
                                     );
                                     ?>
                                 </div>
@@ -361,7 +458,7 @@ class SettingsPage
                                     wp_editor(
                                         (string) ($settings_payload['email_template_status_update'] ?? ''),
                                         'vmp_email_template_status',
-                                        $editor_settings
+                                        array_merge($editor_settings, ['textarea_name' => 'vmp_settings[email_template_status_update]'])
                                     );
                                     ?>
                                 </div>
@@ -378,4 +475,11 @@ class SettingsPage
         <?php
     }
 }
+
+
+
+
+
+
+
 

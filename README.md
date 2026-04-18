@@ -30,6 +30,7 @@ Kalau `VD Store` tidak aktif:
 - status order seller
 - pesan buyer dan seller
 - notifikasi seller
+- template email marketplace untuk admin dan pembeli
 
 ## Cara pakai singkat
 
@@ -114,5 +115,6 @@ Parameter yang didukung:
 
 - `VD Marketplace` tidak menggantikan `VD Store`
 - data inti produk, order, cart, wishlist, dan kupon tetap mengikuti core `VD Store`
+- pengaturan email marketplace tersedia di menu `Pengaturan Marketplace`
 - dokumentasi teknis developer ada di file:
   - `DOKUMENTASI-DEVELOPER.md`

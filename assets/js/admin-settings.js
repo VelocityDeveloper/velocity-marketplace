@@ -7,7 +7,8 @@
     status: 'vmp_email_template_status',
   };
 
-  // Mengirim request ke endpoint settings admin dengan nonce WordPress.
+  let toastTimer = null;
+
   const request = async (method, payload = null) => {
     const options = {
       method,
@@ -31,16 +32,17 @@
     return data;
   };
 
-  // Menyalin payload settings dari backend ke state Alpine page admin.
   const applySettings = (target, settings = {}) => {
     target.form.seller_product_status = String(settings.seller_product_status || 'publish');
     target.form.email_admin_recipient = String(settings.email_admin_recipient || '');
+    target.form.email_from_name = String(settings.email_from_name || '');
+    target.form.email_from_address = String(settings.email_from_address || '');
+    target.form.email_reply_to = String(settings.email_reply_to || '');
     target.form.email_template_admin_order = String(settings.email_template_admin_order || '');
     target.form.email_template_customer_order = String(settings.email_template_customer_order || '');
     target.form.email_template_status_update = String(settings.email_template_status_update || '');
   };
 
-  // Membaca isi editor email dari TinyMCE atau textarea fallback.
   const readEditorValue = (id) => {
     if (window.tinyMCE && typeof window.tinyMCE.triggerSave === 'function') {
       window.tinyMCE.triggerSave();
@@ -49,7 +51,6 @@
     return field ? String(field.value || '') : '';
   };
 
-  // Menulis isi editor email ke TinyMCE dan textarea agar tetap sinkron.
   const writeEditorValue = (id, value) => {
     const content = String(value || '');
     if (window.tinyMCE && typeof window.tinyMCE.get === 'function') {
@@ -65,28 +66,41 @@
     }
   };
 
-  // Menyediakan state Alpine untuk pengaturan marketplace-specific.
   const component = () => ({
-    activeTab: 'general',
+    activeTab: 'email',
     saving: false,
     loading: false,
     saveMessage: '',
     saveError: '',
+    toastVisible: false,
+    toastType: 'success',
+    toastMessage: '',
     form: {
       seller_product_status: 'publish',
       email_admin_recipient: '',
+      email_from_name: '',
+      email_from_address: '',
+      email_reply_to: '',
       email_template_admin_order: '',
       email_template_customer_order: '',
       email_template_status_update: '',
     },
-    // Mengisi state form dari payload settings awal saat halaman dibuka.
     init() {
       applySettings(this, cfg.initialSettings || {});
-      this.$nextTick(() => {
-        this.syncEditorsFromState();
-      });
     },
-    // Mengganti tab aktif tanpa me-reload halaman admin.
+    showToast(type, message) {
+      this.toastType = type === 'error' ? 'error' : 'success';
+      this.toastMessage = String(message || '');
+      this.toastVisible = true;
+
+      if (toastTimer) {
+        window.clearTimeout(toastTimer);
+      }
+
+      toastTimer = window.setTimeout(() => {
+        this.toastVisible = false;
+      }, 3200);
+    },
     setTab(tab) {
       this.activeTab = String(tab || 'general');
       if (this.activeTab === 'email') {
@@ -95,19 +109,16 @@
         });
       }
     },
-    // Menyalin isi editor email ke state Alpine sebelum proses simpan.
     syncEditorsToState() {
       this.form.email_template_admin_order = readEditorValue(editorIds.admin);
       this.form.email_template_customer_order = readEditorValue(editorIds.customer);
       this.form.email_template_status_update = readEditorValue(editorIds.status);
     },
-    // Menyalin state Alpine ke editor email saat data awal atau hasil simpan diterima.
     syncEditorsFromState() {
       writeEditorValue(editorIds.admin, this.form.email_template_admin_order);
       writeEditorValue(editorIds.customer, this.form.email_template_customer_order);
       writeEditorValue(editorIds.status, this.form.email_template_status_update);
     },
-    // Memaksa editor WordPress repaint saat tab email dibuka.
     refreshEditors() {
       if (!window.tinyMCE || typeof window.tinyMCE.get !== 'function') {
         return;
@@ -121,7 +132,6 @@
         editor.fire('ResizeEditor');
       });
     },
-    // Menyimpan seluruh pengaturan custom admin ke backend via REST.
     async save() {
       this.saving = true;
       this.saveMessage = '';
@@ -132,6 +142,9 @@
         const payload = {
           seller_product_status: this.form.seller_product_status,
           email_admin_recipient: this.form.email_admin_recipient,
+          email_from_name: this.form.email_from_name,
+          email_from_address: this.form.email_from_address,
+          email_reply_to: this.form.email_reply_to,
           email_template_admin_order: this.form.email_template_admin_order,
           email_template_customer_order: this.form.email_template_customer_order,
           email_template_status_update: this.form.email_template_status_update,
@@ -141,11 +154,12 @@
         const saved = data && data.data && data.data.settings ? data.data.settings : null;
         if (saved) {
           applySettings(this, saved);
-          this.syncEditorsFromState();
         }
         this.saveMessage = data.message || 'Pengaturan berhasil disimpan.';
+        this.showToast('success', this.saveMessage);
       } catch (error) {
         this.saveError = error.message || 'Pengaturan tidak dapat disimpan.';
+        this.showToast('error', this.saveError);
       } finally {
         this.saving = false;
       }

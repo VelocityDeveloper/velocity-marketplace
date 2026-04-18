@@ -82,6 +82,9 @@ Contoh:
 - `src/Modules/Coupon/CouponService.php`
 - `src/Modules/Order/OrderData.php`
 - `src/Modules/Payment/DuitkuCallbackListener.php`
+- `src/Modules/Email/EmailTemplateService.php`
+- `src/Core/SettingsPage.php`
+- `src/Core/SettingsService.php`
 
 ### Produk premium
 - `src/Modules/Product/PremiumBadge.php`
@@ -96,6 +99,17 @@ Fungsi file:
   - halaman admin untuk review pengajuan premium seller
   - aksi setuju/tolak pengajuan premium
   - menampilkan count pengajuan di submenu admin
+
+### Email marketplace
+- `EmailTemplateService.php`
+  - render email admin dan pembeli
+  - wrapper HTML email
+  - header `From` dan `Reply-To`
+  - tabel detail order, pembeli, dan rekening
+- `SettingsPage.php`
+  - halaman pengaturan email marketplace
+- `SettingsService.php`
+  - sanitize dan payload setting email marketplace
 
 ### Pesan dan notifikasi
 - `src/Modules/Message/MessageController.php`
