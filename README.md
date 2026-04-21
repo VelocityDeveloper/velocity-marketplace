@@ -76,6 +76,8 @@ Kalau `VD Store` tidak aktif:
 - `[vmp_tracking]`
 - `[vmp_store_profile]`
 
+Catatan: `[vmp_add_to_cart]` otomatis memakai tombol VD Store jika plugin VD Store aktif. Jadi opsi produk, minimal order, dan modal pilihan tetap memakai jalur cart yang sama.
+
 ## Helper dan shortcode tambahan
 
 ### Badge produk premium

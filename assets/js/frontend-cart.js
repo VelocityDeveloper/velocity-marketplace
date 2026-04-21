@@ -192,9 +192,19 @@
           : sum;
       }, 0);
     },
+    minQty(item) {
+      return Math.max(1, Number((item && (item.min_order || item.minOrder)) || 1));
+    },
+    canDecrease(item) {
+      return Number((item && item.qty) || 0) > this.minQty(item);
+    },
     // Memperbarui jumlah item tertentu di keranjang.
     async changeQty(item, qty) {
       if (qty < 0) return;
+      const minimumQty = this.minQty(item);
+      if (qty > 0 && qty < minimumQty) {
+        qty = minimumQty;
+      }
       try {
         const { request, emitCartUpdated } = requireShared();
         const data = await request('cart', {

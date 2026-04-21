@@ -52,7 +52,7 @@
                         <td class="text-end" x-text="formatPrice(item.price)"></td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-secondary" type="button" @click="changeQty(item, item.qty - 1)">-</button>
+                                <button class="btn btn-outline-secondary" type="button" @click="changeQty(item, item.qty - 1)" :disabled="!canDecrease(item)">-</button>
                                 <button class="btn btn-outline-secondary disabled" type="button" x-text="item.qty"></button>
                                 <button class="btn btn-outline-secondary" type="button" @click="changeQty(item, item.qty + 1)">+</button>
                             </div>

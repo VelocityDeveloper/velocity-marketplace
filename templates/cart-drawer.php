@@ -47,7 +47,7 @@
                                     <div class="vmp-cart-drawer__item-option" x-show="optionText(item.options)" x-text="optionText(item.options)"></div>
                                     <div class="vmp-cart-drawer__item-price" x-text="formatPrice(item.price) + ' x ' + item.qty + ' = ' + formatPrice(item.subtotal)"></div>
                                     <div class="vmp-cart-drawer__qty">
-                                        <button type="button" class="vmp-cart-drawer__qty-btn" @click="changeQty(item, item.qty - 1)">-</button>
+                                        <button type="button" class="vmp-cart-drawer__qty-btn" @click="changeQty(item, item.qty - 1)" :disabled="!canDecrease(item)" :class="{ 'opacity-50': !canDecrease(item) }">-</button>
                                         <span class="vmp-cart-drawer__qty-value" x-text="item.qty"></span>
                                         <button type="button" class="vmp-cart-drawer__qty-btn" @click="changeQty(item, item.qty + 1)">+</button>
                                     </div>

@@ -216,6 +216,7 @@ Artinya:
 ### Interaksi produk
 - `vmp_add_to_cart`
   - tombol tambah ke keranjang
+  - jika VD Store aktif, tombol ini mendelegasikan render ke `wp_store_add_to_cart_button()` supaya opsi produk, minimal order, dan modal add-to-cart tetap satu jalur
 - `vmp_add_to_wishlist`
   - tombol tambah ke wishlist
 - `vmp_rating`

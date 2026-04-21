@@ -854,6 +854,14 @@ class Shortcode
             return '';
         }
 
+        if (function_exists('wp_store_add_to_cart_button')) {
+            return wp_store_add_to_cart_button($product_id, [
+                'text' => (string) $text,
+                'class' => (string) $class_name,
+                'qty' => 0,
+            ]);
+        }
+
         $text = (string) $text;
         $style = sanitize_key((string) $style);
         if (!in_array($style, ['popup', 'inline'], true)) {
@@ -866,7 +874,9 @@ class Shortcode
             'variant_options' => array_values((array) ($item['variant_options'] ?? [])),
             'price_adjustment_name' => (string) ($item['price_adjustment_name'] ?? ''),
             'price_adjustment_options' => array_values((array) ($item['price_adjustment_options'] ?? [])),
+            'base_price' => isset($item['price']) && is_numeric($item['price']) ? (float) $item['price'] : 0.0,
         ];
+        $min_order = isset($item['min_order']) ? max(1, (int) $item['min_order']) : 1;
 
         $html = '<div class="vmp-add-to-cart-block" data-vmp-add-to-cart-style="' . esc_attr($style) . '">';
 
@@ -876,7 +886,7 @@ class Shortcode
 
         $button_class = trim((string) $class_name . ' d-inline-flex align-items-center justify-content-center gap-2');
         $button_label = $text !== '' ? $text : __('Tambah Keranjang', 'velocity-marketplace');
-        $html .= '<button type="button" class="' . esc_attr($button_class) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-option-style="' . esc_attr($style) . '" data-default-label="' . esc_attr((string) $button_label) . '" aria-label="' . esc_attr((string) $button_label) . '">';
+        $html .= '<button type="button" class="' . esc_attr($button_class) . ' vmp-action-add-to-cart" data-product-id="' . esc_attr((string) $product_id) . '" data-product-options="' . esc_attr(wp_json_encode($payload)) . '" data-option-style="' . esc_attr($style) . '" data-min-order="' . esc_attr((string) $min_order) . '" data-default-label="' . esc_attr((string) $button_label) . '" aria-label="' . esc_attr((string) $button_label) . '">';
         $html .= '<span class="vmp-action-add-to-cart__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h2l2.4 10.5a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H7"/><circle cx="10" cy="19" r="1.5" fill="currentColor"/><circle cx="17" cy="19" r="1.5" fill="currentColor"/></svg></span>';
         if ($text !== '') {
             $html .= '<span class="vmp-action-add-to-cart__text">' . esc_html($text) . '</span>';

@@ -37,11 +37,12 @@ class CartRepository
         ];
     }
 
-    public function upsert_item($product_id, $qty, $options = [], $cart_key = '')
+    public function upsert_item($product_id, $qty, $options = [], $cart_key = '', $add_qty = null)
     {
         $product_id = (int) $product_id;
         $qty = (int) $qty;
         $cart_key = is_string($cart_key) ? trim($cart_key) : '';
+        $add_qty = $add_qty !== null ? max(0, (int) $add_qty) : null;
 
         if ($product_id <= 0 || !Contract::is_product($product_id)) {
             return new \WP_Error('invalid_product', 'Produk tidak valid');
@@ -57,7 +58,7 @@ class CartRepository
         }
 
         $core = $this->core_service();
-        $core->upsert_item($product_id, $qty, ProductData::normalize_options($product_id, $options), $cart_key);
+        $core->upsert_item($product_id, $qty, ProductData::normalize_options($product_id, $options), $cart_key, $add_qty);
 
         return true;
     }
@@ -100,6 +101,8 @@ class CartRepository
             if (!$product) {
                 continue;
             }
+            $min_order = isset($product['min_order']) ? max(1, (int) $product['min_order']) : 1;
+            $qty = max($min_order, $qty);
 
             $seller_id = isset($product['author_id']) ? (int) $product['author_id'] : 0;
             $seller_name = $this->seller_name($seller_id);
@@ -129,6 +132,7 @@ class CartRepository
                 'seller_name' => $seller_name,
                 'seller_url' => $seller_url,
                 'stock' => $product['stock'],
+                'min_order' => $min_order,
                 'weight' => isset($product['weight']) ? (float) $product['weight'] : 0,
                 'is_digital' => !empty($product['is_digital']),
             ];

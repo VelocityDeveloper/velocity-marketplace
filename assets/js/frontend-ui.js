@@ -115,6 +115,7 @@
         const productId = Number(activeButton.dataset.productId || 0);
         if (productId <= 0) return;
         const submittedButton = activeButton;
+        const addQty = Math.max(1, Number(activeButton.dataset.minOrder || 1));
 
         const form = event.currentTarget;
         const variantSelect = form.querySelector('[name="variant"]');
@@ -137,7 +138,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: productId,
-              qty: 1,
+              add_qty: addQty,
               options,
             }),
           });
@@ -184,14 +185,15 @@
       );
     };
 
-    const renderAdjustmentOptions = (rows) =>
+    const renderAdjustmentOptions = (rows, basePrice = 0) =>
       rows
         .map((row, index) => {
           const label = String(row?.label || '').trim();
           if (!label) return '';
           const amount = Number(row?.amount || 0);
           const { money } = requireShared();
-          const suffix = amount > 0 ? ` (+${money(amount)})` : '';
+          const finalPrice = Number(basePrice || 0) + Math.max(0, amount);
+          const suffix = finalPrice > 0 ? ` - ${money(finalPrice)}` : '';
           return `<option value="${escapeHtml(label)}" ${index === 0 ? 'selected' : ''}>${escapeHtml(label + suffix)}</option>`;
         })
         .join('');
@@ -212,6 +214,7 @@
       const title = node.querySelector('#vmp-cart-option-title');
       const fields = node.querySelector('.vmp-cart-option-modal__fields');
       const parts = [];
+      const basePrice = Number(payload.base_price || 0);
 
       if (Array.isArray(payload.variant_options) && payload.variant_options.length > 0) {
         parts.push(`
@@ -232,9 +235,9 @@
           <div>
             <label class="form-label">${escapeHtml(String(payload.price_adjustment_name || 'Pilihan Harga'))}</label>
             <select class="form-select" name="price_adjustment">
-              ${renderAdjustmentOptions(payload.price_adjustment_options)}
+              ${renderAdjustmentOptions(payload.price_adjustment_options, basePrice)}
             </select>
-            <div class="form-text">Pilihan ini akan menambah harga dari harga dasar produk.</div>
+            <div class="form-text">Harga yang tampil adalah harga produk setelah pilihan dipakai.</div>
           </div>
         `);
       }
@@ -295,6 +298,7 @@
 
         const productId = Number(cartButton.dataset.productId || 0);
         if (productId <= 0) return;
+        const addQty = Math.max(1, Number(cartButton.dataset.minOrder || 1));
         const optionStyle = String(cartButton.dataset.optionStyle || 'popup').trim();
         const inlineOptions = optionStyle === 'inline' ? collectInlineOptions(cartButton) : {};
 
@@ -312,7 +316,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: productId,
-              qty: 1,
+              add_qty: addQty,
               options: inlineOptions,
             }),
           });
